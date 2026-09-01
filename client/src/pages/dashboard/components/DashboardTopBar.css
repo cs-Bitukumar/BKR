@@ -1,0 +1,218 @@
+﻿.dashboard-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  margin: 12px auto 0;
+  width: min(1440px, calc(100% - 24px));
+  border-radius: 24px;
+  background: rgba(18, 18, 18, 0.9);
+}
+
+.dashboard-topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+}
+
+.dashboard-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.dashboard-brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: #041400;
+  font-family: 'Sora', sans-serif;
+  font-weight: 800;
+  background: linear-gradient(135deg, #dcffd6 0%, var(--primary) 100%);
+}
+
+.dashboard-brand-copy h1 {
+  margin: 0;
+  font-family: 'Sora', sans-serif;
+  font-size: 1.05rem;
+}
+
+.dashboard-brand-copy p {
+  margin: 2px 0 0;
+  color: var(--muted-2);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.dashboard-search {
+  flex: 1;
+  max-width: 420px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dashboard-search span {
+  color: var(--muted-2);
+  flex-shrink: 0;
+}
+
+.dashboard-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.dashboard-search input::placeholder {
+  color: var(--muted-2);
+}
+
+.dashboard-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-icon-btn {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.topbar-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: #041400;
+  background: var(--primary);
+  border: 2px solid #111;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.topbar-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(57, 255, 20, 0.2);
+  background: rgba(57, 255, 20, 0.08);
+  color: var(--primary);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.topbar-profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  padding: 0 12px 0 6px;
+  border-radius: 16px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.topbar-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: #051100;
+  background: linear-gradient(135deg, #dcffd6 0%, var(--primary) 100%);
+  font-family: 'Sora', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.topbar-profile-copy {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.topbar-profile-copy strong {
+  font-size: 0.8rem;
+  line-height: 1.1;
+}
+
+.topbar-profile-copy span {
+  color: var(--muted-2);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.63rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 980px) {
+  .dashboard-topbar-inner {
+    flex-wrap: wrap;
+  }
+
+  .dashboard-search {
+    order: 3;
+    max-width: none;
+    width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .dashboard-topbar {
+    width: min(100%, calc(100% - 16px));
+    border-radius: 20px;
+  }
+
+  .dashboard-topbar-inner {
+    padding: 12px 14px;
+  }
+
+  .topbar-pill {
+    display: none;
+  }
+
+  .topbar-profile {
+    padding-right: 10px;
+  }
+
+  .topbar-profile-copy span {
+    display: none;
+  }
+}
+

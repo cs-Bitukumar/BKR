@@ -1,0 +1,63 @@
+.winner-list {
+  display: grid;
+  gap: 14px;
+}
+
+.winner-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.winner-card h3 {
+  margin: 0 0 8px;
+  font-family: 'Sora', sans-serif;
+  font-size: 1.15rem;
+}
+
+.winner-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.winner-rank {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-family: 'Space Mono', monospace;
+  color: #071300;
+  background: linear-gradient(135deg, #f5f0d4, #ffcc4d);
+}
+
+.winner-stats {
+  text-align: right;
+}
+
+.winner-stats strong {
+  display: block;
+  font-family: 'Space Mono', monospace;
+  color: var(--primary);
+  font-size: 1rem;
+}
+
+.winner-stats span {
+  color: var(--muted-2);
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .winner-card {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .winner-stats {
+    text-align: left;
+  }
+}

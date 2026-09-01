@@ -1,0 +1,85 @@
+.signup-page {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  /* padding: 30px 0 18px; */
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top center, rgba(57, 255, 20, 0.12), transparent 18%),
+    radial-gradient(circle at bottom left, rgba(45, 63, 58, 0.28), transparent 22%),
+    linear-gradient(180deg, #050505 0%, #0a0a0a 38%, #0d0f0d 100%);
+}
+
+.signup-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.14), transparent 86%);
+  opacity: 0.32;
+}
+
+.signup-shell {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 720px);
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+}
+
+.signup-atmosphere {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(92vw, 760px);
+  pointer-events: none;
+  filter: blur(18px);
+  opacity: 0.65;
+}
+
+.signup-atmosphere-top {
+  top: -40px;
+  height: 180px;
+  background: radial-gradient(circle at center, rgba(57, 255, 20, 0.18), transparent 58%);
+}
+
+.signup-atmosphere-bottom {
+  bottom: -10px;
+  height: 220px;
+  background:
+    radial-gradient(circle at center, rgba(57, 255, 20, 0.11), transparent 48%),
+    radial-gradient(circle at center, rgba(118, 255, 186, 0.08), transparent 66%);
+}
+
+.signup-footer {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 720px);
+  margin-top: 8px;
+  padding: 12px 18px 0;
+  text-align: center;
+  color: rgba(184, 193, 173, 0.45);
+  font-family: 'Space Mono', monospace;
+  letter-spacing: 0.04em;
+}
+
+.signup-footer p {
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .signup-page {
+    padding: 18px 0 12px;
+  }
+
+  .signup-shell,
+  .signup-footer {
+    width: min(100%, calc(100% - 20px));
+  }
+}

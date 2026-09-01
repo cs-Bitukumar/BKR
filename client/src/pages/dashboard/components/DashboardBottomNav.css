@@ -1,0 +1,41 @@
+﻿.dashboard-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .dashboard-bottom-nav {
+    position: sticky;
+    bottom: 0;
+    z-index: 50;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    width: min(100%, calc(100% - 16px));
+    margin: 0 auto 10px;
+    padding: 10px 8px;
+    border-radius: 22px;
+    background: rgba(18, 18, 18, 0.94);
+  }
+
+  .bottom-nav-item {
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+    padding: 10px 4px;
+    border-radius: 14px;
+    color: var(--muted-2);
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .bottom-nav-item.is-active {
+    color: var(--primary);
+    background: rgba(57, 255, 20, 0.08);
+  }
+
+  .bottom-nav-item .material-symbols-outlined {
+    font-size: 1.05rem;
+  }
+}
+

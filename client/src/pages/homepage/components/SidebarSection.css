@@ -1,0 +1,70 @@
+.sidebar-card {
+  display: grid;
+  gap: 16px;
+}
+
+.wallet {
+  padding: 18px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(57, 255, 20, 0.12), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(57, 255, 20, 0.2);
+}
+
+.wallet-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wallet-top span {
+  color: var(--muted-2);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-family: 'Space Mono', monospace;
+}
+
+.wallet h3 {
+  margin: 10px 0 4px;
+  font-family: 'Sora', sans-serif;
+  font-size: 2rem;
+}
+
+.wallet p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.feature-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.feature-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.feature-card h3 {
+  margin: 10px 0 8px;
+  font-family: 'Sora', sans-serif;
+  font-size: 1.15rem;
+}
+
+.feature-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.feature-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--primary);
+  background: rgba(57, 255, 20, 0.08);
+  border: 1px solid rgba(57, 255, 20, 0.16);
+}

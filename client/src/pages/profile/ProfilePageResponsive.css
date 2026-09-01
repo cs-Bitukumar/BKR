@@ -1,0 +1,15 @@
+@media (max-width: 620px) {
+  .profile-edit-form,
+  .profile-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-image-field,
+  .profile-form-actions {
+    grid-column: auto;
+  }
+
+  .profile-edit-panel {
+    padding: 18px;
+  }
+}

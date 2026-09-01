@@ -1,0 +1,55 @@
+.wallet-balance-card-shell {
+  position: relative;
+  overflow: hidden;
+  min-height: 150px;
+  padding: 10px 18px;
+  border-radius: 24px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  background:
+    radial-gradient(circle at center, rgba(57, 255, 20, 0.12), transparent 65%),
+    rgba(19, 19, 19, 0.92);
+  border: 1px solid rgba(57, 255, 20, 0.16);
+  box-shadow:
+    0 0 0 1px rgba(57, 255, 20, 0.06) inset,
+    0 24px 60px rgba(0, 0, 0, 0.48);
+}
+
+.wallet-balance-card-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, rgba(57, 255, 20, 0.22), transparent);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.wallet-balance-card-kicker {
+  color: var(--muted-2);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.wallet-balance-card-value {
+  margin: 0;
+  font-family: 'Sora', sans-serif;
+  font-size: clamp(2rem, 5.6vw, 3.2rem);
+  line-height: 1;
+  color: var(--primary);
+  letter-spacing: 0.05em;
+}
+
+.wallet-balance-card-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--primary);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
