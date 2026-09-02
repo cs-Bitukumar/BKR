@@ -78,3 +78,4 @@ const fourPlayerGame = createGame('TEST04', 4);
 ['one', 'two', 'three', 'four'].forEach((userId) => addPlayer(fourPlayerGame, { userId }));
 assert.throws(() => addPlayer(fourPlayerGame, { userId: 'five' }), /Room is full/);
 console.log('Ludo engine tests passed');
+
