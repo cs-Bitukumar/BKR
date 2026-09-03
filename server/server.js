@@ -33,9 +33,15 @@ const allowedOrigins = [...new Set([
     'https://localhost:5173',
 ])];
 
+const cloudflarePagesOrigin = /^https:\/\/([a-z0-9-]+\.)*pages\.dev$/i;
+
+function isAllowedOrigin(origin) {
+    return allowedOrigins.includes(origin) || cloudflarePagesOrigin.test(origin);
+}
+
 const corsOptions = {
     origin(origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
+        if (!origin || isAllowedOrigin(origin)) {
             callback(null, true);
             return;
         }
