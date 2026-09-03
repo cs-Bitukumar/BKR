@@ -22,10 +22,28 @@ import { createLudoSocket } from './ludo/ludoSocket.js';
 dotenv.config();
 //console.log("ODDS_API_KEY =", process.env.ODDS_API_KEY);
 
-const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+const allowedOrigins = [...new Set([
+    ...((process.env.CLIENT_ORIGIN || process.env.FRONTEND_URL || 'http://localhost:5173')
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean)),
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:4173',
+    'https://localhost:5173',
+])];
+
+const corsOptions = {
+    origin(origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+            return;
+        }
+
+        callback(new Error(`Origin ${origin} is not allowed by CORS`));
+    },
+    credentials: true,
+};
 
 // global error handlers to aid debugging crashes
 process.on('unhandledRejection', (reason, promise) => {
@@ -43,10 +61,7 @@ const server = http.createServer(app);
 
 // middleware
 app.use(helmet());
-app.use(cors({
-    origin: allowedOrigins,
-    credentials: true,
-}));
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
 app.use(rateLimit({ windowMs: 60 * 1000, max: 200 }));
 
@@ -63,12 +78,10 @@ app.use('/api/sports', sportsRoutes);
 
 app.get('/', (req, res) => res.send('BKR API'));
 app.get('/health', (req, res) => res.json({ ok: true }));
+app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 const io = new IOServer(server, {
-    cors: {
-        origin: allowedOrigins,
-        credentials: true,
-    },
+    cors: corsOptions,
 });
 
 createLudoSocket(io.of('/ludo'));

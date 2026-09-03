@@ -1,0 +1,15 @@
+# Node / build artifacts
+node_modules/
+dist/
+dist-ssr/
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# OS/editor files
+.DS_Store
+.vscode/
+.idea/

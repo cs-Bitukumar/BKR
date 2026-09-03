@@ -2,11 +2,12 @@ import './LudoPage.css'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { io } from 'socket.io-client'
 import { Link } from 'react-router-dom'
+import { API_BASE_URL } from '../../api/api'
 import { useAuth } from '../../context/AuthContext'
 import LudoBoard from './components/LudoBoard'
 import LudoLobby from './components/LudoLobby'
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+const SOCKET_URL = API_BASE_URL
 const ROOM_STORAGE_KEY = 'bkr_ludo_room'
 
 function LudoPage() {
