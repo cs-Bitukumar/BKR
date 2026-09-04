@@ -22,11 +22,15 @@ import { createLudoSocket } from './ludo/ludoSocket.js';
 dotenv.config();
 //console.log("ODDS_API_KEY =", process.env.ODDS_API_KEY);
 
+const configuredOrigins = [process.env.CLIENT_ORIGIN, process.env.FRONTEND_URL]
+    .filter(Boolean)
+    .flatMap((origins) => origins.split(','))
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
 const allowedOrigins = [...new Set([
-    ...((process.env.CLIENT_ORIGIN || process.env.FRONTEND_URL || 'http://localhost:5173')
-        .split(',')
-        .map((origin) => origin.trim())
-        .filter(Boolean)),
+    ...(configuredOrigins.length ? configuredOrigins : ['http://localhost:5173']),
+    'https://bkr-9r8.pages.dev',
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://localhost:4173',
