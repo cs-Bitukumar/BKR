@@ -1,7 +1,21 @@
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim()
+const defaultApiUrl = import.meta.env.DEV ? 'http://localhost:4000' : 'https://bkr-4l50.onrender.com'
+
+if (!configuredApiUrl && !defaultApiUrl) {
+  throw new Error('VITE_API_URL is required for production builds')
+}
+
+export const API_BASE_URL = (configuredApiUrl || defaultApiUrl).replace(/\/+$/, '')
+
+export function buildApiUrl(path) {
+  if (!path) return API_BASE_URL
+  if (/^https?:\/\//i.test(path)) return path.replace(/\/+$/, '')
+  return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
+}
 
 async function request(path, options = {}, token) {
-  const res = await fetch(`${BASE}${path}`, {
+  const url = buildApiUrl(path)
+  const res = await fetch(url, {
     ...options,
     headers: {
       ...(options.headers || {}),
