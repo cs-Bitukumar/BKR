@@ -1,5 +1,11 @@
-const DEFAULT_API_URL = 'http://localhost:4000'
-export const API_BASE_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, '')
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim()
+const defaultApiUrl = import.meta.env.DEV ? 'http://localhost:4000' : ''
+
+if (!configuredApiUrl && !defaultApiUrl) {
+  throw new Error('VITE_API_URL is required for production builds')
+}
+
+export const API_BASE_URL = (configuredApiUrl || defaultApiUrl).replace(/\/+$/, '')
 
 export function buildApiUrl(path) {
   if (!path) return API_BASE_URL
