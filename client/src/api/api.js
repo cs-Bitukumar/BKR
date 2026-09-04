@@ -1,5 +1,5 @@
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim()
-const defaultApiUrl = import.meta.env.DEV ? 'http://localhost:4000' : ''
+const defaultApiUrl = import.meta.env.DEV ? 'http://localhost:4000' : 'https://bkr-4l50.onrender.com'
 
 if (!configuredApiUrl && !defaultApiUrl) {
   throw new Error('VITE_API_URL is required for production builds')
