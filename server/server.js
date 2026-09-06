@@ -45,8 +45,13 @@ function isAllowedOrigin(origin) {
 
 const corsOptions = {
     origin(origin, callback) {
-        if (!origin || isAllowedOrigin(origin)) {
+        if (!origin) {
             callback(null, true);
+            return;
+        }
+
+        if (isAllowedOrigin(origin)) {
+            callback(null, origin);
             return;
         }
 
