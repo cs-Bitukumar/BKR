@@ -15,6 +15,7 @@ import {
   rollDice,
   startGame,
 } from '../ludo/gameEngine.js';
+import { normalizeSocketRoom } from '../ludo/ludoSocket.js';
 
 const user = new User({ username: 'tester', email: 'tester@gmail.com', password: 'password123' });
 assert.equal(user.role, 'user');
@@ -77,5 +78,11 @@ assert.equal(game.winner.color, 'red');
 const fourPlayerGame = createGame('TEST04', 4);
 ['one', 'two', 'three', 'four'].forEach((userId) => addPlayer(fourPlayerGame, { userId }));
 assert.throws(() => addPlayer(fourPlayerGame, { userId: 'five' }), /Room is full/);
+
+const staleSocket = { data: { user: { id: 'stale-user' }, roomCode: 'STALE' }, leave: () => {} };
+const staleRooms = new Map([['STALE', { code: 'STALE', game: createGame('STALE', 2) }]]);
+assert.equal(normalizeSocketRoom(staleSocket, staleRooms), false);
+assert.equal(staleSocket.data.roomCode, null);
+
 console.log('Ludo engine tests passed');
 

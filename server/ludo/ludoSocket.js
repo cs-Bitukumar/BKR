@@ -33,6 +33,26 @@ function publicState(room) {
   return serializeGame(room.game);
 }
 
+export function normalizeSocketRoom(socket, roomMap = rooms) {
+  const code = String(socket.data?.roomCode || '').trim().toUpperCase();
+  if (!code) return true;
+
+  const room = roomMap.get(code);
+  if (!room) {
+    socket.data.roomCode = null;
+    return false;
+  }
+
+  const player = getPlayer(room.game, socket.data.user.id);
+  if (!player) {
+    socket.data.roomCode = null;
+    if (socket.leave) socket.leave(code);
+    return false;
+  }
+
+  return true;
+}
+
 function emitState(io, room) {
   io.to(room.code).emit('gameState', publicState(room));
 }
@@ -104,6 +124,7 @@ export function createLudoSocket(io) {
     socket.on('createRoom', ({ maxPlayers } = {}, ack) => {
       try {
         guardRate(socket);
+        normalizeSocketRoom(socket);
         if (socket.data.roomCode) throw new Error('You are already in a room');
         const code = createRoomCode();
         const room = { code, game: createGame(code, maxPlayers), cleanupTimer: null };
@@ -119,6 +140,7 @@ export function createLudoSocket(io) {
     socket.on('joinRoom', ({ roomCode } = {}, ack) => {
       try {
         guardRate(socket);
+        normalizeSocketRoom(socket);
         if (socket.data.roomCode) throw new Error('You are already in a room');
         const code = String(roomCode || '').trim().toUpperCase();
         const room = rooms.get(code);
@@ -202,15 +224,22 @@ export function createLudoSocket(io) {
     socket.on('disconnect', () => {
       const code = socket.data.roomCode;
       const room = code && rooms.get(code);
-      if (!room) return;
+      if (!room) {
+        socket.data.roomCode = null;
+        return;
+      }
       const player = getPlayer(room.game, socket.data.user.id);
-      if (!player || player.socketId !== socket.id) return;
+      if (!player || player.socketId !== socket.id) {
+        socket.data.roomCode = null;
+        return;
+      }
       removePlayer(room.game, socket.data.user.id);
       if (getCurrentPlayer(room.game)?.userId === socket.data.user.id && room.game.status === 'playing') {
         room.game.diceValue = null;
         room.game.diceRolled = false;
         advanceTurn(room.game);
       }
+      socket.data.roomCode = null;
       scheduleDisconnectedCleanup(io, room, socket.data.user.id);
       io.to(room.code).emit('playerDisconnected', publicState(room));
       emitState(io, room);
