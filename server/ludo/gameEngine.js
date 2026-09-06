@@ -39,7 +39,16 @@ export function createGame(roomId, maxPlayers = MAX_PLAYERS) {
 export function addPlayer(game, { userId, username, socketId }) {
   if (game.status !== 'waiting') throw new Error('Game has already started');
   if (game.players.length >= game.maxPlayers) throw new Error('Room is full');
-  if (game.players.some((player) => player.userId === userId)) throw new Error('You are already in this room');
+
+  const existingPlayer = game.players.find((player) => player.userId === userId);
+  if (existingPlayer) {
+    if (existingPlayer.connected) throw new Error('You are already in this room');
+    existingPlayer.username = username || existingPlayer.username || 'Player';
+    existingPlayer.socketId = socketId;
+    existingPlayer.connected = true;
+    delete existingPlayer.disconnectedAt;
+    return game;
+  }
 
   const color = LUDO_COLORS[game.players.length];
   game.players.push({ userId, username: username || 'Player', socketId, color, connected: true, tokens: createTokens() });
@@ -56,9 +65,14 @@ export function reconnectPlayer(game, userId, socketId, username) {
   return true;
 }
 
-export function removePlayer(game, userId) {
+export function removePlayer(game, userId, hardRemove = false) {
   const player = game.players.find((item) => item.userId === userId);
-  if (player) player.connected = false;
+  if (!player) return game;
+  if (hardRemove) {
+    game.players = game.players.filter((item) => item.userId !== userId);
+    return game;
+  }
+  player.connected = false;
   return game;
 }
 

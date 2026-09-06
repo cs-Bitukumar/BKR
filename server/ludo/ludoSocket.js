@@ -211,10 +211,9 @@ export function createLudoSocket(io) {
     socket.on('leaveRoom', ({ roomCode } = {}, ack) => {
       try {
         const room = getRoom(socket, roomCode);
-        removePlayer(room.game, socket.data.user.id);
+        removePlayer(room.game, socket.data.user.id, true);
         socket.leave(room.code);
         socket.data.roomCode = null;
-        if (room.game.status === 'waiting') room.game.players = room.game.players.filter((player) => player.userId !== socket.data.user.id);
         success(ack, { game: publicState(room) });
         if (room.game.players.length === 0) rooms.delete(room.code);
         else { io.to(room.code).emit('playerLeft', publicState(room)); emitState(io, room); }

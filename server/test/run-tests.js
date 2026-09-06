@@ -79,6 +79,11 @@ const fourPlayerGame = createGame('TEST04', 4);
 ['one', 'two', 'three', 'four'].forEach((userId) => addPlayer(fourPlayerGame, { userId }));
 assert.throws(() => addPlayer(fourPlayerGame, { userId: 'five' }), /Room is full/);
 
+const staleRoomGame = createGame('TEST05', 2);
+addPlayer(staleRoomGame, { userId: 'same-user', username: 'Same', socketId: 'old-socket' });
+removePlayer(staleRoomGame, 'same-user');
+assert.doesNotThrow(() => addPlayer(staleRoomGame, { userId: 'same-user', username: 'Same', socketId: 'new-socket' }));
+
 const staleSocket = { data: { user: { id: 'stale-user' }, roomCode: 'STALE' }, leave: () => {} };
 const staleRooms = new Map([['STALE', { code: 'STALE', game: createGame('STALE', 2) }]]);
 assert.equal(normalizeSocketRoom(staleSocket, staleRooms), false);
