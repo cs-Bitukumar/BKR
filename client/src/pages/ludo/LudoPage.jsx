@@ -8,13 +8,18 @@ import LudoBoard from './components/LudoBoard'
 import LudoLobby from './components/LudoLobby'
 
 const SOCKET_URL = API_BASE_URL
-const ROOM_STORAGE_KEY = 'bkr_ludo_room'
+const LEGACY_ROOM_STORAGE_KEY = 'bkr_ludo_room'
+
+function getRoomStorageKey(userId) {
+  return `bkr_ludo_room_${String(userId || 'anonymous')}`
+}
 
 function LudoPage() {
   const { user, token } = useAuth()
   const socketRef = useRef(null)
   const [game, setGame] = useState(null)
-  const [roomCode, setRoomCode] = useState(() => sessionStorage.getItem(ROOM_STORAGE_KEY) || '')
+  const roomStorageKey = getRoomStorageKey(user?.id)
+  const [roomCode, setRoomCode] = useState(() => sessionStorage.getItem(roomStorageKey) || '')
   const [joinCode, setJoinCode] = useState('')
   const [maxPlayers, setMaxPlayers] = useState(4)
   const [validMoves, setValidMoves] = useState([])
@@ -35,11 +40,11 @@ function LudoPage() {
 
     socket.on('connect', () => {
       setConnection('connected')
-      const savedRoom = sessionStorage.getItem(ROOM_STORAGE_KEY)
+      const savedRoom = sessionStorage.getItem(roomStorageKey)
       if (savedRoom) {
         socket.emit('reconnectRoom', { roomCode: savedRoom }, (response) => {
           if (response?.ok) updateGame(response.game)
-          else { sessionStorage.removeItem(ROOM_STORAGE_KEY); setRoomCode('') }
+          else { sessionStorage.removeItem(roomStorageKey); setRoomCode('') }
         })
       }
     })
@@ -56,8 +61,9 @@ function LudoPage() {
     })
     socket.on('tokenMoved', () => setValidMoves([]))
     socket.on('gameFinished', updateGame)
+    sessionStorage.removeItem(LEGACY_ROOM_STORAGE_KEY)
     return () => { socket.removeAllListeners(); socket.disconnect(); socketRef.current = null }
-  }, [token, user.id])
+  }, [roomStorageKey, token, user.id])
 
   function emitAction(event, payload, callback) {
     setError('')
@@ -71,7 +77,7 @@ function LudoPage() {
 
   function handleRoom(response) {
     setRoomCode(response.roomCode)
-    sessionStorage.setItem(ROOM_STORAGE_KEY, response.roomCode)
+    sessionStorage.setItem(roomStorageKey, response.roomCode)
     updateGame(response.game)
     setNotice('Room ready. Share the code with your friends.')
   }
@@ -89,7 +95,7 @@ function LudoPage() {
     emitAction('leaveRoom', { roomCode }, () => {
       setGame(null)
       setRoomCode('')
-      sessionStorage.removeItem(ROOM_STORAGE_KEY)
+      sessionStorage.removeItem(roomStorageKey)
       setNotice('You left the room.')
     })
   }
@@ -111,6 +117,7 @@ function LudoPage() {
   const ownPlayer = useMemo(() => game?.players.find((player) => String(player.userId) === String(user.id)), [game, user.id])
   const currentPlayer = game?.players[game.currentPlayer]
   const isHost = game?.players[0]?.userId === ownPlayer?.userId
+  const canStartGame = Boolean(isHost && game?.status === 'waiting' && game.players.length >= 2)
   const isOwnTurn = currentPlayer?.userId === ownPlayer?.userId
   const turnStyle = { '--player-color': `var(--ludo-${currentPlayer?.color || 'red'})` }
 
@@ -140,7 +147,7 @@ function LudoPage() {
             {game.players.map((player) => <div className="ludo-player-row" key={player.userId}><i className="ludo-player-dot" style={{ '--player-color': `var(--ludo-${player.color})` }} /><strong>{player.username}</strong><small>{player.userId === game.players[0].userId ? 'Host' : 'Joined'}</small></div>)}
             {Array.from({ length: game.maxPlayers - game.players.length }, (_, index) => <div className="ludo-player-row" key={`empty-${index}`}><i className="ludo-player-dot" /><strong>Open seat</strong><small>Waiting</small></div>)}
           </div>
-          <div className="ludo-room-footer"><p>{game.players.length}/{game.maxPlayers} players · Need at least 2</p>{isHost ? <button className="ludo-primary-btn" type="button" onClick={startGame} disabled={game.players.length < 2}>Start game</button> : <p>Waiting for host to start</p>}</div>
+          <div className="ludo-room-footer"><p>{game.players.length}/{game.maxPlayers} players · {game.players.length < 2 ? 'Need at least 2' : 'Ready to start'}</p>{isHost ? <button className="ludo-primary-btn" type="button" onClick={startGame} disabled={!canStartGame}>Start game</button> : <p>Waiting for host to start</p>}</div>
         </section>}
 
         {game?.status === 'playing' && <section className="ludo-layout">

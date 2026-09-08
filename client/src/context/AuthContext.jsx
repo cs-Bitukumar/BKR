@@ -57,6 +57,7 @@ export function AuthProvider({ children }) {
 
         const nextSession = { token, user: normalizeUser(data.user || data) }
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession))
+        localStorage.removeItem(LEGACY_AUTH_STORAGE_KEY)
         setSession(nextSession)
       } catch {
         if (cancelled) return
@@ -77,6 +78,7 @@ export function AuthProvider({ children }) {
   function saveAuth(token, userData) {
     const nextSession = { token, user: normalizeUser(userData) }
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession))
+    localStorage.removeItem(LEGACY_AUTH_STORAGE_KEY)
     setSession(nextSession)
     setAuthReady(true)
   }
@@ -90,6 +92,7 @@ export function AuthProvider({ children }) {
 
   function logout() {
     localStorage.removeItem(AUTH_STORAGE_KEY)
+    localStorage.removeItem(LEGACY_AUTH_STORAGE_KEY)
     setSession({ token: null, user: null })
     setAuthReady(true)
     navigate('/')

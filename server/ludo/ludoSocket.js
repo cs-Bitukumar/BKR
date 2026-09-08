@@ -145,6 +145,7 @@ export function createLudoSocket(io) {
         const code = String(roomCode || '').trim().toUpperCase();
         const room = rooms.get(code);
         if (!room) throw new Error('Room not found');
+        if (getPlayer(room.game, socket.data.user.id)?.connected) throw new Error('You are already in this room');
         addPlayer(room.game, { ...socket.data.user, socketId: socket.id });
         socket.data.roomCode = code;
         socket.join(code);

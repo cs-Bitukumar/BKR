@@ -84,6 +84,13 @@ addPlayer(staleRoomGame, { userId: 'same-user', username: 'Same', socketId: 'old
 removePlayer(staleRoomGame, 'same-user');
 assert.doesNotThrow(() => addPlayer(staleRoomGame, { userId: 'same-user', username: 'Same', socketId: 'new-socket' }));
 
+const waitingGame = createGame('TEST06', 2);
+addPlayer(waitingGame, { userId: 'host', username: 'Host', socketId: 'host-socket' });
+assert.throws(() => startGame(waitingGame, 'host'), /At least 2 players are required/);
+addPlayer(waitingGame, { userId: 'guest', username: 'Guest', socketId: 'guest-socket' });
+assert.doesNotThrow(() => startGame(waitingGame, 'host'));
+assert.throws(() => startGame(waitingGame, 'guest'), /Only the host can start the game/);
+
 const staleSocket = { data: { user: { id: 'stale-user' }, roomCode: 'STALE' }, leave: () => {} };
 const staleRooms = new Map([['STALE', { code: 'STALE', game: createGame('STALE', 2) }]]);
 assert.equal(normalizeSocketRoom(staleSocket, staleRooms), false);
