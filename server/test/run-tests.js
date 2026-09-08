@@ -15,7 +15,7 @@ import {
   rollDice,
   startGame,
 } from '../ludo/gameEngine.js';
-import { normalizeSocketRoom } from '../ludo/ludoSocket.js';
+import { detachSocketFromRoom, normalizeSocketRoom } from '../ludo/ludoSocket.js';
 
 const user = new User({ username: 'tester', email: 'tester@gmail.com', password: 'password123' });
 assert.equal(user.role, 'user');
@@ -28,8 +28,7 @@ console.log('Server model tests passed');
 const game = createGame('TEST01', 2);
 addPlayer(game, { userId: 'one', username: 'One', socketId: 'socket-one' });
 addPlayer(game, { userId: 'two', username: 'Two', socketId: 'socket-two' });
-assert.throws(() => addPlayer(game, { userId: 'three' }), /Room is full/);
-startGame(game, 'one');
+assert.throws(() => addPlayer(game, { userId: 'three' }), /Game has already started/);
 assert.equal(game.status, 'playing');
 assert.throws(() => rollDice(game, 'two', () => 0.5), /not your turn/);
 assert.deepEqual(rollDice(game, 'one', () => 5).validMoves, []);
@@ -77,7 +76,7 @@ assert.equal(game.winner.color, 'red');
 
 const fourPlayerGame = createGame('TEST04', 4);
 ['one', 'two', 'three', 'four'].forEach((userId) => addPlayer(fourPlayerGame, { userId }));
-assert.throws(() => addPlayer(fourPlayerGame, { userId: 'five' }), /Room is full/);
+assert.throws(() => addPlayer(fourPlayerGame, { userId: 'five' }), /Game has already started/);
 
 const staleRoomGame = createGame('TEST05', 2);
 addPlayer(staleRoomGame, { userId: 'same-user', username: 'Same', socketId: 'old-socket' });
@@ -86,15 +85,43 @@ assert.doesNotThrow(() => addPlayer(staleRoomGame, { userId: 'same-user', userna
 
 const waitingGame = createGame('TEST06', 2);
 addPlayer(waitingGame, { userId: 'host', username: 'Host', socketId: 'host-socket' });
-assert.throws(() => startGame(waitingGame, 'host'), /At least 2 players are required/);
+assert.throws(() => startGame(waitingGame, 'host'), /Waiting for all players to join/);
 addPlayer(waitingGame, { userId: 'guest', username: 'Guest', socketId: 'guest-socket' });
-assert.doesNotThrow(() => startGame(waitingGame, 'host'));
+assert.equal(waitingGame.status, 'playing');
 assert.throws(() => startGame(waitingGame, 'guest'), /Only the host can start the game/);
+
+const autoStartGame = createGame('TEST07', 3);
+addPlayer(autoStartGame, { userId: 'a', username: 'A', socketId: 'a-socket' });
+addPlayer(autoStartGame, { userId: 'b', username: 'B', socketId: 'b-socket' });
+assert.equal(autoStartGame.status, 'waiting');
+addPlayer(autoStartGame, { userId: 'c', username: 'C', socketId: 'c-socket' });
+assert.equal(autoStartGame.status, 'playing');
+assert.equal(autoStartGame.players.length, 3);
+assert.equal(autoStartGame.currentPlayer, 0);
+assert.throws(() => startGame(autoStartGame, 'a'), /Game has already started/);
+
+const fullRoomRequiresCapacity = createGame('TEST08', 4);
+addPlayer(fullRoomRequiresCapacity, { userId: 'x', username: 'X', socketId: 'x-socket' });
+addPlayer(fullRoomRequiresCapacity, { userId: 'y', username: 'Y', socketId: 'y-socket' });
+assert.throws(() => startGame(fullRoomRequiresCapacity, 'x'), /Waiting for all players to join/);
+addPlayer(fullRoomRequiresCapacity, { userId: 'z', username: 'Z', socketId: 'z-socket' });
+assert.throws(() => startGame(fullRoomRequiresCapacity, 'x'), /Waiting for all players to join/);
+addPlayer(fullRoomRequiresCapacity, { userId: 'w', username: 'W', socketId: 'w-socket' });
+assert.equal(fullRoomRequiresCapacity.status, 'playing');
 
 const staleSocket = { data: { user: { id: 'stale-user' }, roomCode: 'STALE' }, leave: () => {} };
 const staleRooms = new Map([['STALE', { code: 'STALE', game: createGame('STALE', 2) }]]);
 assert.equal(normalizeSocketRoom(staleSocket, staleRooms), false);
 assert.equal(staleSocket.data.roomCode, null);
+
+const roomA = { code: 'ROOMA', game: createGame('ROOMA', 2) };
+addPlayer(roomA.game, { userId: 'alice', username: 'Alice', socketId: 'alice-old-socket' });
+const roomMap = new Map([['ROOMA', roomA]]);
+const socketInOldRoom = { data: { user: { id: 'alice' }, roomCode: 'ROOMA' }, leave: () => {} };
+const ioStub = { to: () => ({ emit: () => {} }) };
+detachSocketFromRoom(ioStub, socketInOldRoom, 'ROOMA', roomMap);
+assert.equal(socketInOldRoom.data.roomCode, null);
+assert.equal(roomMap.has('ROOMA'), false);
 
 console.log('Ludo engine tests passed');
 

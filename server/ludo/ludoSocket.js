@@ -57,6 +57,36 @@ function emitState(io, room) {
   io.to(room.code).emit('gameState', publicState(room));
 }
 
+export function detachSocketFromRoom(io, socket, roomCodeOverride, roomMap = rooms) {
+  const code = String(roomCodeOverride || socket.data?.roomCode || '').trim().toUpperCase();
+  if (!code) return null;
+
+  const room = roomMap.get(code);
+  if (!room) {
+    socket.data.roomCode = null;
+    if (socket.leave) socket.leave(code);
+    return null;
+  }
+
+  if (socket.data?.user?.id) {
+    const player = getPlayer(room.game, socket.data.user.id);
+    if (player) {
+      const wasConnected = player.connected;
+      removePlayer(room.game, socket.data.user.id, true);
+      if (room.game.players.length === 0) {
+        roomMap.delete(room.code);
+      } else if (wasConnected) {
+        io.to(room.code).emit('playerLeft', publicState(room));
+        emitState(io, room);
+      }
+    }
+  }
+
+  socket.data.roomCode = null;
+  if (socket.leave) socket.leave(code);
+  return room;
+}
+
 function getRoom(socket, roomCode) {
   const code = String(roomCode || socket.data.roomCode || '').trim().toUpperCase();
   const room = rooms.get(code);
@@ -124,6 +154,7 @@ export function createLudoSocket(io) {
     socket.on('createRoom', ({ maxPlayers } = {}, ack) => {
       try {
         guardRate(socket);
+        detachSocketFromRoom(io, socket);
         normalizeSocketRoom(socket);
         if (socket.data.roomCode) throw new Error('You are already in a room');
         const code = createRoomCode();
@@ -140,13 +171,24 @@ export function createLudoSocket(io) {
     socket.on('joinRoom', ({ roomCode } = {}, ack) => {
       try {
         guardRate(socket);
+        detachSocketFromRoom(io, socket);
         normalizeSocketRoom(socket);
         if (socket.data.roomCode) throw new Error('You are already in a room');
         const code = String(roomCode || '').trim().toUpperCase();
         const room = rooms.get(code);
         if (!room) throw new Error('Room not found');
-        if (getPlayer(room.game, socket.data.user.id)?.connected) throw new Error('You are already in this room');
-        addPlayer(room.game, { ...socket.data.user, socketId: socket.id });
+
+        const existingPlayer = getPlayer(room.game, socket.data.user.id);
+        if (existingPlayer && existingPlayer.connected) {
+          throw new Error('You are already in this room');
+        }
+
+        if (existingPlayer) {
+          reconnectPlayer(room.game, socket.data.user.id, socket.id, socket.data.user.username);
+        } else {
+          addPlayer(room.game, { ...socket.data.user, socketId: socket.id });
+        }
+
         socket.data.roomCode = code;
         socket.join(code);
         success(ack, { roomCode: code, game: publicState(room) });
