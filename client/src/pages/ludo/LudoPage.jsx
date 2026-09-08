@@ -27,11 +27,21 @@ function LudoPage() {
   const [notice, setNotice] = useState('')
   const [connection, setConnection] = useState('connecting')
   const [diceRolling, setDiceRolling] = useState(false)
+  const lastGameStatusRef = useRef(null)
 
   const updateGame = (nextGame) => {
     setGame(nextGame)
     if (!nextGame?.diceValue || nextGame.status !== 'playing') setValidMoves([])
   }
+
+  useEffect(() => {
+    const nextStatus = game?.status ?? null
+    if (nextStatus && nextStatus !== lastGameStatusRef.current) {
+      if (nextStatus === 'playing') setNotice('Room full! Game started for all players.')
+      if (nextStatus === 'waiting') setNotice('Room ready. Share the code with your friends.')
+    }
+    lastGameStatusRef.current = nextStatus
+  }, [game?.status])
 
   useEffect(() => {
     if (!token) return undefined
@@ -82,10 +92,16 @@ function LudoPage() {
     setNotice('Room ready. Share the code with your friends.')
   }
 
-  function createRoom() { emitAction('createRoom', { maxPlayers }, handleRoom) }
+  function createRoom() {
+    sessionStorage.removeItem(roomStorageKey)
+    setRoomCode('')
+    emitAction('createRoom', { maxPlayers }, handleRoom)
+  }
 
   function joinRoom() {
     if (joinCode.trim().length !== 6) { setError('Enter a valid six-character room code'); return }
+    sessionStorage.removeItem(roomStorageKey)
+    setRoomCode('')
     emitAction('joinRoom', { roomCode: joinCode }, handleRoom)
   }
 
@@ -117,7 +133,7 @@ function LudoPage() {
   const ownPlayer = useMemo(() => game?.players.find((player) => String(player.userId) === String(user.id)), [game, user.id])
   const currentPlayer = game?.players[game.currentPlayer]
   const isHost = game?.players[0]?.userId === ownPlayer?.userId
-  const canStartGame = Boolean(isHost && game?.status === 'waiting' && game.players.length >= 2)
+  const canStartGame = Boolean(isHost && game?.status === 'waiting' && game.players.length === game.maxPlayers)
   const isOwnTurn = currentPlayer?.userId === ownPlayer?.userId
   const turnStyle = { '--player-color': `var(--ludo-${currentPlayer?.color || 'red'})` }
 
@@ -138,20 +154,29 @@ function LudoPage() {
           <aside className="ludo-card ludo-side-card"><h3>How this room works</h3><ul className="ludo-rule-list"><li>Share the private six-character code.</li><li>Roll a 6 to bring a token out.</li><li>Land on opponents to send them home.</li><li>Safe cells protect tokens from capture.</li><li>Finish all four tokens to win.</li></ul></aside>
         </>}
 
-        {game?.status === 'waiting' && <section className="ludo-card">
+        {game?.status === 'waiting' && <section className="ludo-card ludo-room-panel ludo-room-panel--waiting">
           <div className="ludo-room-header">
             <div><span className="ludo-kicker">Private room</span><h2>Waiting for players</h2><div className="ludo-room-code">{roomCode}<button className="ludo-copy-btn" type="button" onClick={copyRoomCode} aria-label="Copy room code"><span className="material-symbols-outlined">content_copy</span></button></div></div>
             <button className="ludo-secondary-btn" type="button" onClick={leaveRoom}>Leave</button>
+          </div>
+          <div className="ludo-room-status">
+            <span className={`ludo-status-pill ${game.players.length >= game.maxPlayers ? 'is-ready' : ''}`}>
+              {game.players.length >= game.maxPlayers ? 'Room full — starting soon' : `${game.players.length}/${game.maxPlayers} joined`}
+            </span>
           </div>
           <div className="ludo-room-players">
             {game.players.map((player) => <div className="ludo-player-row" key={player.userId}><i className="ludo-player-dot" style={{ '--player-color': `var(--ludo-${player.color})` }} /><strong>{player.username}</strong><small>{player.userId === game.players[0].userId ? 'Host' : 'Joined'}</small></div>)}
             {Array.from({ length: game.maxPlayers - game.players.length }, (_, index) => <div className="ludo-player-row" key={`empty-${index}`}><i className="ludo-player-dot" /><strong>Open seat</strong><small>Waiting</small></div>)}
           </div>
-          <div className="ludo-room-footer"><p>{game.players.length}/{game.maxPlayers} players · {game.players.length < 2 ? 'Need at least 2' : 'Ready to start'}</p>{isHost ? <button className="ludo-primary-btn" type="button" onClick={startGame} disabled={!canStartGame}>Start game</button> : <p>Waiting for host to start</p>}</div>
+          <div className="ludo-room-footer"><p>{game.players.length}/{game.maxPlayers} players · {game.players.length < game.maxPlayers ? `Waiting for ${game.maxPlayers - game.players.length} more player${game.maxPlayers - game.players.length === 1 ? '' : 's'}` : 'Room full'} </p>{isHost && game.players.length === game.maxPlayers ? <button className="ludo-primary-btn" type="button" onClick={startGame} disabled={!canStartGame}>Start game</button> : <p>Waiting for the room to fill</p>}</div>
         </section>}
 
-        {game?.status === 'playing' && <section className="ludo-layout">
-          <div className="ludo-card ludo-game-layout">
+        {game?.status === 'playing' && <section className="ludo-layout ludo-live-transition">
+          <div className="ludo-card ludo-game-layout ludo-live-board-shell">
+            <div className="ludo-transition-banner">
+              <span className="ludo-transition-badge">Room full</span>
+              <strong>Game live for all players</strong>
+            </div>
             <div className="ludo-game-top"><p>Turn {game.turnNumber} · {isOwnTurn ? 'Your move' : `${currentPlayer?.username}'s move`}</p><span className="ludo-turn-badge" style={turnStyle}><i />{currentPlayer?.color} turn</span></div>
             <div className="ludo-players-strip">{game.players.map((player) => <div className={`ludo-mini-player${player.userId === currentPlayer?.userId ? ' is-current' : ''}`} style={{ '--player-color': `var(--ludo-${player.color})` }} key={player.userId}><i />{player.username}{player.userId === ownPlayer?.userId && <b>YOU</b>}{!player.connected && <b>OFFLINE</b>}</div>)}</div>
             <LudoBoard game={game} userId={ownPlayer?.userId} validMoves={validMoves} onMove={moveToken} />

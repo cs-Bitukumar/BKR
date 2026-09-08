@@ -36,6 +36,20 @@ export function createGame(roomId, maxPlayers = MAX_PLAYERS) {
   };
 }
 
+export function autoStartIfReady(game) {
+  if (game.status !== 'waiting') return game;
+  if (game.players.length < MIN_PLAYERS) return game;
+  if (game.players.length !== game.maxPlayers) return game;
+
+  game.status = 'playing';
+  game.currentPlayer = 0;
+  game.turnNumber = 1;
+  game.diceValue = null;
+  game.diceRolled = false;
+  game.winner = null;
+  return game;
+}
+
 export function addPlayer(game, { userId, username, socketId }) {
   if (game.status !== 'waiting') throw new Error('Game has already started');
   if (game.players.length >= game.maxPlayers) throw new Error('Room is full');
@@ -47,12 +61,12 @@ export function addPlayer(game, { userId, username, socketId }) {
     existingPlayer.socketId = socketId;
     existingPlayer.connected = true;
     delete existingPlayer.disconnectedAt;
-    return game;
+    return autoStartIfReady(game);
   }
 
   const color = LUDO_COLORS[game.players.length];
   game.players.push({ userId, username: username || 'Player', socketId, color, connected: true, tokens: createTokens() });
-  return game;
+  return autoStartIfReady(game);
 }
 
 export function reconnectPlayer(game, userId, socketId, username) {
@@ -79,11 +93,14 @@ export function removePlayer(game, userId, hardRemove = false) {
 export function startGame(game, userId) {
   if (!game.players.some((player) => player.userId === userId)) throw new Error('You are not in this room');
   if (game.players[0]?.userId !== userId) throw new Error('Only the host can start the game');
-  if (game.players.length < MIN_PLAYERS) throw new Error('At least 2 players are required');
   if (game.status !== 'waiting') throw new Error('Game has already started');
+  if (game.players.length !== game.maxPlayers) throw new Error('Waiting for all players to join');
   game.status = 'playing';
   game.currentPlayer = 0;
   game.turnNumber = 1;
+  game.diceValue = null;
+  game.diceRolled = false;
+  game.winner = null;
   return game;
 }
 
