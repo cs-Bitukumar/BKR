@@ -1,7 +1,7 @@
 import './LudoPage.css'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { io } from 'socket.io-client'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { API_BASE_URL } from '../../api/api'
 import { useAuth } from '../../context/AuthContext'
 import LudoBoard from './components/LudoBoard'
@@ -16,6 +16,8 @@ function getRoomStorageKey(userId) {
 
 function LudoPage() {
   const { user, token } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
   const socketRef = useRef(null)
   const [game, setGame] = useState(null)
   const roomStorageKey = getRoomStorageKey(user?.id)
@@ -29,19 +31,21 @@ function LudoPage() {
   const [diceRolling, setDiceRolling] = useState(false)
   const lastGameStatusRef = useRef(null)
 
-  const updateGame = (nextGame) => {
+  const updateGame = useCallback((nextGame) => {
+    if (nextGame?.status && nextGame.status !== lastGameStatusRef.current) {
+      if (nextGame.status === 'playing') setNotice('Room full! Game started for all players.')
+      if (nextGame.status === 'waiting') setNotice('Room ready. Share the code with your friends.')
+      lastGameStatusRef.current = nextGame.status
+    }
     setGame(nextGame)
     if (!nextGame?.diceValue || nextGame.status !== 'playing') setValidMoves([])
-  }
+  }, [])
 
   useEffect(() => {
     const nextStatus = game?.status ?? null
-    if (nextStatus && nextStatus !== lastGameStatusRef.current) {
-      if (nextStatus === 'playing') setNotice('Room full! Game started for all players.')
-      if (nextStatus === 'waiting') setNotice('Room ready. Share the code with your friends.')
-    }
-    lastGameStatusRef.current = nextStatus
-  }, [game?.status])
+    if (nextStatus === 'playing' && location.pathname !== '/ludo/play') navigate('/ludo/play', { replace: true })
+    if (nextStatus === 'waiting' && location.pathname === '/ludo/play') navigate('/ludo', { replace: true })
+  }, [game?.status, location.pathname, navigate])
 
   useEffect(() => {
     if (!token) return undefined
@@ -73,7 +77,7 @@ function LudoPage() {
     socket.on('gameFinished', updateGame)
     sessionStorage.removeItem(LEGACY_ROOM_STORAGE_KEY)
     return () => { socket.removeAllListeners(); socket.disconnect(); socketRef.current = null }
-  }, [roomStorageKey, token, user.id])
+  }, [roomStorageKey, token, updateGame, user.id])
 
   function emitAction(event, payload, callback) {
     setError('')
@@ -113,6 +117,7 @@ function LudoPage() {
       setRoomCode('')
       sessionStorage.removeItem(roomStorageKey)
       setNotice('You left the room.')
+      navigate('/ludo', { replace: true })
     })
   }
 
