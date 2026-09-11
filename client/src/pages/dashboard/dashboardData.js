@@ -8,6 +8,7 @@ export const dashboardNavigation = [
   { icon: 'space_dashboard', label: 'Overview', href: '#overview', active: true },
   { icon: 'sports_basketball', label: 'Live Markets', href: '/live-markets' },
   { icon: 'casino', label: 'Play Ludo', href: '/ludo' },
+  { icon: 'autorenew', label: 'Spin Game', href: '/spinner' },
   { icon: 'insights', label: 'Analytics', href: '#analytics' },
   { icon: 'history', label: 'History', href: '#bet-history' },
   { icon: 'account_balance_wallet', label: 'Wallet', href: '/wallet' },

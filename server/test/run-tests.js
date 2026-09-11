@@ -4,6 +4,7 @@ import Bet from '../models/betModel.js';
 import WalletTransaction from '../models/walletTransactionModel.js';
 import {
   SAFE_CELLS,
+  BOT_USER_ID,
   addPlayer,
   canMoveToken,
   createGame,
@@ -28,8 +29,9 @@ console.log('Server model tests passed');
 const game = createGame('TEST01', 2);
 addPlayer(game, { userId: 'one', username: 'One', socketId: 'socket-one' });
 addPlayer(game, { userId: 'two', username: 'Two', socketId: 'socket-two' });
+assert.equal(game.status, 'waiting');
+startGame(game, 'one');
 assert.throws(() => addPlayer(game, { userId: 'three' }), /Game has already started/);
-assert.equal(game.status, 'playing');
 assert.throws(() => rollDice(game, 'two', () => 0.5), /not your turn/);
 assert.deepEqual(rollDice(game, 'one', () => 5).validMoves, []);
 assert.equal(canMoveToken(game, 'one', 0), false);
@@ -76,7 +78,10 @@ assert.equal(game.winner.color, 'red');
 
 const fourPlayerGame = createGame('TEST04', 4);
 ['one', 'two', 'three', 'four'].forEach((userId) => addPlayer(fourPlayerGame, { userId }));
-assert.throws(() => addPlayer(fourPlayerGame, { userId: 'five' }), /Game has already started/);
+assert.equal(fourPlayerGame.status, 'waiting');
+assert.throws(() => addPlayer(fourPlayerGame, { userId: 'five' }), /Room is full/);
+startGame(fourPlayerGame, 'one');
+assert.equal(fourPlayerGame.status, 'playing');
 
 const staleRoomGame = createGame('TEST05', 2);
 addPlayer(staleRoomGame, { userId: 'same-user', username: 'Same', socketId: 'old-socket' });
@@ -87,18 +92,30 @@ const waitingGame = createGame('TEST06', 2);
 addPlayer(waitingGame, { userId: 'host', username: 'Host', socketId: 'host-socket' });
 assert.throws(() => startGame(waitingGame, 'host'), /Waiting for all players to join/);
 addPlayer(waitingGame, { userId: 'guest', username: 'Guest', socketId: 'guest-socket' });
-assert.equal(waitingGame.status, 'playing');
+assert.equal(waitingGame.status, 'waiting');
 assert.throws(() => startGame(waitingGame, 'guest'), /Only the host can start the game/);
+startGame(waitingGame, 'host');
+assert.equal(waitingGame.status, 'playing');
 
 const autoStartGame = createGame('TEST07', 3);
 addPlayer(autoStartGame, { userId: 'a', username: 'A', socketId: 'a-socket' });
 addPlayer(autoStartGame, { userId: 'b', username: 'B', socketId: 'b-socket' });
 assert.equal(autoStartGame.status, 'waiting');
 addPlayer(autoStartGame, { userId: 'c', username: 'C', socketId: 'c-socket' });
-assert.equal(autoStartGame.status, 'playing');
+assert.equal(autoStartGame.status, 'waiting');
 assert.equal(autoStartGame.players.length, 3);
 assert.equal(autoStartGame.currentPlayer, 0);
-assert.throws(() => startGame(autoStartGame, 'a'), /Game has already started/);
+startGame(autoStartGame, 'a');
+assert.equal(autoStartGame.status, 'playing');
+
+const botGame = createGame('TEST-BOT', 2);
+addPlayer(botGame, { userId: 'human', username: 'Human', socketId: 'human-socket' });
+addPlayer(botGame, { userId: BOT_USER_ID, username: 'BKR Bot', isBot: true });
+assert.equal(botGame.status, 'waiting');
+startGame(botGame, 'human');
+assert.equal(botGame.status, 'playing');
+assert.equal(botGame.players[1].isBot, true);
+assert.deepEqual(rollDice(botGame, 'human', () => 0.999).validMoves, [0, 1, 2, 3]);
 
 const fullRoomRequiresCapacity = createGame('TEST08', 4);
 addPlayer(fullRoomRequiresCapacity, { userId: 'x', username: 'X', socketId: 'x-socket' });
@@ -107,6 +124,8 @@ assert.throws(() => startGame(fullRoomRequiresCapacity, 'x'), /Waiting for all p
 addPlayer(fullRoomRequiresCapacity, { userId: 'z', username: 'Z', socketId: 'z-socket' });
 assert.throws(() => startGame(fullRoomRequiresCapacity, 'x'), /Waiting for all players to join/);
 addPlayer(fullRoomRequiresCapacity, { userId: 'w', username: 'W', socketId: 'w-socket' });
+assert.equal(fullRoomRequiresCapacity.status, 'waiting');
+startGame(fullRoomRequiresCapacity, 'x');
 assert.equal(fullRoomRequiresCapacity.status, 'playing');
 
 const staleSocket = { data: { user: { id: 'stale-user' }, roomCode: 'STALE' }, leave: () => {} };

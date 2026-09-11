@@ -23,7 +23,8 @@ function LudoPage() {
   const roomStorageKey = getRoomStorageKey(user?.id)
   const [roomCode, setRoomCode] = useState(() => sessionStorage.getItem(roomStorageKey) || '')
   const [joinCode, setJoinCode] = useState('')
-  const [maxPlayers, setMaxPlayers] = useState(4)
+  const [maxPlayers, setMaxPlayers] = useState(2)
+  const [timeMinutes, setTimeMinutes] = useState(10)
   const [validMoves, setValidMoves] = useState([])
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -99,14 +100,24 @@ function LudoPage() {
   function createRoom() {
     sessionStorage.removeItem(roomStorageKey)
     setRoomCode('')
-    emitAction('createRoom', { maxPlayers }, handleRoom)
+    emitAction('createRoom', { maxPlayers, timeMinutes }, handleRoom)
+  }
+
+  function createSinglePlayerRoom() {
+    sessionStorage.removeItem(roomStorageKey)
+    setRoomCode('')
+    emitAction('createRoom', { singlePlayer: true, timeMinutes }, handleRoom)
   }
 
   function joinRoom() {
-    if (joinCode.trim().length !== 6) { setError('Enter a valid six-character room code'); return }
+    const code = joinCode.trim().toUpperCase()
+    if (!/^[A-Z0-9]{6}$/.test(code)) { setError('Enter a valid six-character room code'); return }
     sessionStorage.removeItem(roomStorageKey)
     setRoomCode('')
-    emitAction('joinRoom', { roomCode: joinCode }, handleRoom)
+    emitAction('joinRoom', { roomCode: code }, (response) => {
+      setJoinCode('')
+      handleRoom(response)
+    })
   }
 
   function startGame() { emitAction('startGame', { roomCode }) }
@@ -155,7 +166,7 @@ function LudoPage() {
         {connection !== 'connected' && !game && <div className="ludo-notice">{connection === 'connecting' ? 'Connecting to multiplayer...' : 'Multiplayer connection unavailable.'}</div>}
 
         {!game && <>
-          <LudoLobby joinCode={joinCode} maxPlayers={maxPlayers} onJoinCodeChange={setJoinCode} onMaxPlayersChange={setMaxPlayers} onCreate={createRoom} onJoin={joinRoom} disabled={connection !== 'connected'} />
+          <LudoLobby joinCode={joinCode} maxPlayers={maxPlayers} timeMinutes={timeMinutes} onJoinCodeChange={setJoinCode} onMaxPlayersChange={setMaxPlayers} onTimeMinutesChange={setTimeMinutes} onCreate={createRoom} onCreateSinglePlayer={createSinglePlayerRoom} onJoin={joinRoom} disabled={connection !== 'connected'} />
           <aside className="ludo-card ludo-side-card"><h3>How this room works</h3><ul className="ludo-rule-list"><li>Share the private six-character code.</li><li>Roll a 6 to bring a token out.</li><li>Land on opponents to send them home.</li><li>Safe cells protect tokens from capture.</li><li>Finish all four tokens to win.</li></ul></aside>
         </>}
 
@@ -166,7 +177,7 @@ function LudoPage() {
           </div>
           <div className="ludo-room-status">
             <span className={`ludo-status-pill ${game.players.length >= game.maxPlayers ? 'is-ready' : ''}`}>
-              {game.players.length >= game.maxPlayers ? 'Room full — starting soon' : `${game.players.length}/${game.maxPlayers} joined`}
+              {game.players.length >= game.maxPlayers ? 'Room full — ready to start' : `${game.players.length}/${game.maxPlayers} joined`}
             </span>
           </div>
           <div className="ludo-room-players">

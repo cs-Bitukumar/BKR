@@ -15,6 +15,7 @@ import LiveFootballPage from './pages/live/LiveFootballPage'
 import LiveFootballDetail from './pages/live/LiveFootballDetail'
 import SessionPage from './pages/live/SessionPage'
 import LudoPage from './pages/ludo/LudoPage'
+import SpinnerPage from './pages/spinner/SpinnerPage'
 import HistoryPage from './pages/HistoryPage'
 import InfoPage from './pages/InfoPage'
 import NotificationsPage from './pages/NotificationsPage'
@@ -48,6 +49,7 @@ function AppRoutes() {
       <Route path="/session/:id" element={protect(<SessionPage />)} />
       <Route path="/ludo/play" element={protect(<LudoPage />)} />
       <Route path="/ludo" element={protect(<LudoPage />)} />
+      <Route path="/spinner" element={protect(<SpinnerPage />)} />
       <Route path="/live-football" element={protect(<LiveFootballPage />)} />
       <Route path="/live-football/:id" element={protect(<LiveFootballDetail />)} />
       <Route path="/live/:id" element={protect(<LiveMatchDetail />)} />

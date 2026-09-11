@@ -4,6 +4,7 @@ import '../config/env.js';
 import {
   addPlayer,
   advanceTurn,
+  BOT_USER_ID,
   createGame,
   getCurrentPlayer,
   getPlayer,
@@ -27,6 +28,10 @@ function createRoomCode() {
     code = Array.from({ length: 6 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('');
   } while (rooms.has(code));
   return code;
+}
+
+function normalizeRoomCode(roomCode) {
+  return String(roomCode || '').trim().toUpperCase();
 }
 
 function publicState(room) {
@@ -57,6 +62,38 @@ function emitState(io, room) {
   io.to(room.code).emit('gameState', publicState(room));
 }
 
+function scheduleBotTurn(io, room) {
+  if (room.botTimer || room.game.status !== 'playing' || !room.game.players.some((player) => !player.isBot) || getCurrentPlayer(room.game)?.userId !== BOT_USER_ID) return;
+  room.botTimer = setTimeout(() => {
+    room.botTimer = null;
+    if (room.game.status !== 'playing' || getCurrentPlayer(room.game)?.userId !== BOT_USER_ID) return;
+    try {
+      const result = rollDice(room.game, BOT_USER_ID);
+      io.to(room.code).emit('diceRolled', { value: result.value, playerId: BOT_USER_ID, validMoves: result.validMoves });
+      emitState(io, room);
+
+      if (result.validMoves.length) {
+        const tokenIndex = result.validMoves[Math.floor(Math.random() * result.validMoves.length)];
+        const moveResult = moveToken(room.game, BOT_USER_ID, tokenIndex);
+        io.to(room.code).emit('tokenMoved', { ...moveResult, playerId: BOT_USER_ID });
+        emitState(io, room);
+        if (moveResult.winner) io.to(room.code).emit('gameFinished', publicState(room));
+      } else {
+        room.game.diceValue = null;
+        room.game.diceRolled = false;
+        if (result.value !== 6) advanceTurn(room.game);
+        emitState(io, room);
+      }
+      scheduleBotTurn(io, room);
+    } catch {
+      room.game.diceValue = null;
+      room.game.diceRolled = false;
+      advanceTurn(room.game);
+      emitState(io, room);
+    }
+  }, 650);
+}
+
 export function detachSocketFromRoom(io, socket, roomCodeOverride, roomMap = rooms) {
   const code = String(roomCodeOverride || socket.data?.roomCode || '').trim().toUpperCase();
   if (!code) return null;
@@ -73,7 +110,8 @@ export function detachSocketFromRoom(io, socket, roomCodeOverride, roomMap = roo
     if (player) {
       const wasConnected = player.connected;
       removePlayer(room.game, socket.data.user.id, true);
-      if (room.game.players.length === 0) {
+      if (room.game.players.length === 0 || room.game.players.every((item) => item.isBot)) {
+        if (room.botTimer) clearTimeout(room.botTimer);
         roomMap.delete(room.code);
       } else if (wasConnected) {
         io.to(room.code).emit('playerLeft', publicState(room));
@@ -125,7 +163,8 @@ function scheduleDisconnectedCleanup(io, room, userId) {
     if (!current || current.connected || current.disconnectedAt !== disconnectedAt) return;
     const removedIndex = room.game.players.findIndex((item) => item.userId === userId);
     room.game.players = room.game.players.filter((item) => item.userId !== userId);
-    if (room.game.players.length === 0) {
+    if (room.game.players.length === 0 || room.game.players.every((item) => item.isBot)) {
+      if (room.botTimer) clearTimeout(room.botTimer);
       rooms.delete(room.code);
       return;
     }
@@ -151,20 +190,25 @@ export function createLudoSocket(io) {
   });
 
   io.on('connection', (socket) => {
-    socket.on('createRoom', ({ maxPlayers } = {}, ack) => {
+    socket.on('createRoom', ({ maxPlayers, singlePlayer, timeMinutes } = {}, ack) => {
       try {
         guardRate(socket);
         detachSocketFromRoom(io, socket);
         normalizeSocketRoom(socket);
         if (socket.data.roomCode) throw new Error('You are already in a room');
         const code = createRoomCode();
-        const room = { code, game: createGame(code, maxPlayers), cleanupTimer: null };
+        const room = { code, game: createGame(code, singlePlayer ? 2 : maxPlayers, timeMinutes), cleanupTimer: null, botTimer: null };
         addPlayer(room.game, { ...socket.data.user, socketId: socket.id });
+        if (singlePlayer) {
+          addPlayer(room.game, { userId: BOT_USER_ID, username: 'BKR Bot', isBot: true });
+          startGame(room.game, socket.data.user.id);
+        }
         rooms.set(code, room);
         socket.data.roomCode = code;
         socket.join(code);
         success(ack, { roomCode: code, game: publicState(room) });
         socket.emit('gameState', publicState(room));
+        scheduleBotTurn(io, room);
       } catch (error) { failure(socket, ack, error.message); }
     });
 
@@ -174,15 +218,13 @@ export function createLudoSocket(io) {
         detachSocketFromRoom(io, socket);
         normalizeSocketRoom(socket);
         if (socket.data.roomCode) throw new Error('You are already in a room');
-        const code = String(roomCode || '').trim().toUpperCase();
+        const code = normalizeRoomCode(roomCode);
+        if (!/^[A-Z0-9]{6}$/.test(code)) throw new Error('Enter a valid six-character room code');
         const room = rooms.get(code);
         if (!room) throw new Error('Room not found');
 
         const existingPlayer = getPlayer(room.game, socket.data.user.id);
-        if (existingPlayer && existingPlayer.connected) {
-          throw new Error('You are already in this room');
-        }
-
+        const isReconnect = Boolean(existingPlayer);
         if (existingPlayer) {
           reconnectPlayer(room.game, socket.data.user.id, socket.id, socket.data.user.username);
         } else {
@@ -192,7 +234,7 @@ export function createLudoSocket(io) {
         socket.data.roomCode = code;
         socket.join(code);
         success(ack, { roomCode: code, game: publicState(room) });
-        io.to(code).emit('playerJoined', publicState(room));
+        io.to(code).emit(isReconnect ? 'playerReconnected' : 'playerJoined', publicState(room));
         emitState(io, room);
       } catch (error) { failure(socket, ack, error.message); }
     });
@@ -236,6 +278,7 @@ export function createLudoSocket(io) {
           if (result.value !== 6) advanceTurn(room.game);
           emitState(io, room);
         }
+        scheduleBotTurn(io, room);
       } catch (error) { failure(socket, ack, error.message); }
     });
 
@@ -248,6 +291,7 @@ export function createLudoSocket(io) {
         io.to(room.code).emit('tokenMoved', { ...result, playerId: socket.data.user.id });
         emitState(io, room);
         if (result.winner) io.to(room.code).emit('gameFinished', publicState(room));
+        scheduleBotTurn(io, room);
       } catch (error) { failure(socket, ack, error.message); }
     });
 
@@ -258,7 +302,10 @@ export function createLudoSocket(io) {
         socket.leave(room.code);
         socket.data.roomCode = null;
         success(ack, { game: publicState(room) });
-        if (room.game.players.length === 0) rooms.delete(room.code);
+        if (room.game.players.length === 0 || room.game.players.every((item) => item.isBot)) {
+          if (room.botTimer) clearTimeout(room.botTimer);
+          rooms.delete(room.code);
+        }
         else { io.to(room.code).emit('playerLeft', publicState(room)); emitState(io, room); }
       } catch (error) { failure(socket, ack, error.message); }
     });
