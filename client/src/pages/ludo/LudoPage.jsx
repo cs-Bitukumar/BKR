@@ -71,7 +71,8 @@ function LudoPage() {
     socket.on('playerLeft', updateGame)
     socket.on('playerDisconnected', (nextGame) => { updateGame(nextGame); setNotice('A player disconnected. They can reconnect shortly.') })
     socket.on('playerReconnected', (nextGame) => { updateGame(nextGame); setNotice('Player reconnected.') })
-    socket.on('diceRolled', ({ playerId, validMoves: moves }) => {
+    socket.on('diceRolled', ({ playerId, validMoves: moves, turnForfeited }) => {
+      if (turnForfeited) setNotice(`${String(playerId) === String(user.id) ? 'Three sixes in a row — your turn is forfeited.' : 'Three sixes in a row — turn forfeited.'}`)
       if (String(playerId) === String(user.id)) setValidMoves(moves || [])
     })
     socket.on('tokenMoved', () => setValidMoves([]))

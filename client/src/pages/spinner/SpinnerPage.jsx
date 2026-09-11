@@ -19,6 +19,8 @@ function SpinnerPage() {
   const [result, setResult] = useState(null)
   const [history, setHistory] = useState([])
   const [score, setScore] = useState(0)
+  const [spinCount, setSpinCount] = useState(0)
+  const [bestWin, setBestWin] = useState(0)
 
   function spinWheel() {
     if (isSpinning) return
@@ -34,6 +36,8 @@ function SpinnerPage() {
     window.setTimeout(() => {
       setResult(landed)
       setScore((current) => current + landed.value)
+      setSpinCount((current) => current + 1)
+      setBestWin((current) => Math.max(current, landed.value))
       setHistory((current) => [{ ...landed, id: Date.now() }, ...current].slice(0, 5))
       setIsSpinning(false)
     }, 4200)
@@ -44,6 +48,8 @@ function SpinnerPage() {
     setResult(null)
     setHistory([])
     setScore(0)
+    setSpinCount(0)
+    setBestWin(0)
   }
 
   const wheelBackground = `conic-gradient(${segments.map((segment, index) => `${segment.color} ${index * 12.5}% ${(index + 1) * 12.5}%`).join(', ')})`
@@ -59,14 +65,16 @@ function SpinnerPage() {
         <section className="spinner-layout">
           <div className="spinner-card spinner-stage">
             <div className="spinner-heading"><div><span className="spinner-kicker">Points challenge</span><h2>Give it a spin</h2><p>Build your score with one lucky turn at a time.</p></div><div className="spinner-score"><span>Your score</span><strong>{score}</strong><small>points</small></div></div>
+            <div className="spinner-stats" aria-label="Spinner stats"><span><b>{spinCount}</b> turns</span><span><b>{bestWin}</b> best win</span><span><b>250</b> jackpot</span></div>
             <div className="wheel-wrap">
+              <div className="wheel-glow" aria-hidden="true" />
               <span className="wheel-pointer" aria-hidden="true" />
               <div className={`spinner-wheel${isSpinning ? ' is-spinning' : ''}`} style={{ '--wheel-background': wheelBackground, transform: `rotate(${rotation}deg)` }} aria-label="Lucky spinner wheel">
                 {segments.map((segment, index) => <span className="wheel-label" style={{ transform: `rotate(${index * 45 + 22.5}deg)` }} key={`${segment.label}-${index}`}><b>{segment.label}</b></span>)}
                 <div className="wheel-center"><span>SPIN</span></div>
               </div>
             </div>
-            <div className="spinner-action"><button className="spin-button" type="button" onClick={spinWheel} disabled={isSpinning}><span className="material-symbols-outlined">autorenew</span>{isSpinning ? 'Spinning...' : 'Spin the wheel'}</button>{result && <p className="spinner-result" role="status">You landed on <strong>{result.label}</strong>{result.value > 0 ? ` and earned ${result.value} points.` : '.'}</p>}</div>
+            <div className="spinner-action"><button className="spin-button" type="button" onClick={spinWheel} disabled={isSpinning}><span className="material-symbols-outlined">autorenew</span>{isSpinning ? 'Spinning...' : 'Spin the wheel'}</button>{result && <div className="spinner-result" role="status"><span className="result-spark">✦</span><p>You landed on <strong>{result.label}</strong>{result.value > 0 ? ` and earned ${result.value} points.` : '.'}</p></div>}</div>
           </div>
 
           <aside className="spinner-card spinner-history">

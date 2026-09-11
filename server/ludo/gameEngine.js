@@ -175,7 +175,16 @@ export function rollDice(game, userId, random = Math.random) {
   game.diceValue = value;
   game.diceRolled = true;
   game.sixesInRow = value === 6 ? game.sixesInRow + 1 : 0;
-  return { value, validMoves: getValidMoves(game, userId, value) };
+
+  if (game.sixesInRow === 3) {
+    game.diceValue = null;
+    game.diceRolled = false;
+    game.sixesInRow = 0;
+    advanceTurn(game);
+    return { value, validMoves: [], turnForfeited: true };
+  }
+
+  return { value, validMoves: getValidMoves(game, userId, value), turnForfeited: false };
 }
 
 export function moveToken(game, userId, tokenIndex) {
@@ -189,17 +198,25 @@ export function moveToken(game, userId, tokenIndex) {
   const destination = getGlobalPosition(player.color, nextPosition);
   const captured = captureOpponents(game, player, destination);
   const finished = player.tokens.every((position) => position === FINAL_POSITION);
+  const reachedHome = nextPosition === FINAL_POSITION;
   game.diceValue = null;
   game.diceRolled = false;
-  game.sixesInRow = 0;
+  if (diceValue !== 6) game.sixesInRow = 0;
 
   if (finished) {
     game.status = 'finished';
     game.winner = { userId: player.userId, username: player.username, color: player.color };
-  } else if (diceValue !== 6) {
+  } else if (diceValue !== 6 && captured.length === 0 && !reachedHome) {
     advanceTurn(game);
   }
-  return { tokenIndex, oldPosition, nextPosition, captured, extraTurn: diceValue === 6 && game.status !== 'finished', winner: game.winner };
+  return {
+    tokenIndex,
+    oldPosition,
+    nextPosition,
+    captured,
+    extraTurn: game.status !== 'finished' && (diceValue === 6 || captured.length > 0 || reachedHome),
+    winner: game.winner,
+  };
 }
 
 export function serializeGame(game) {
