@@ -3,6 +3,7 @@ export const MAX_PLAYERS = 4;
 export const MIN_PLAYERS = 2;
 export const TOKENS_PER_PLAYER = 4;
 export const FINAL_POSITION = 57;
+export const BOT_USER_ID = 'ludo-bot';
 export const SAFE_CELLS = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
 export const START_CELLS = { red: 0, green: 13, yellow: 26, blue: 39 };
 
@@ -21,10 +22,11 @@ function createTokens() {
   return Array.from({ length: TOKENS_PER_PLAYER }, () => -1);
 }
 
-export function createGame(roomId, maxPlayers = MAX_PLAYERS) {
+export function createGame(roomId, maxPlayers = MAX_PLAYERS, timeMinutes = 10) {
   return {
     roomId,
     maxPlayers: Math.min(MAX_PLAYERS, Math.max(MIN_PLAYERS, Number(maxPlayers) || MAX_PLAYERS)),
+    timeMinutes: Math.max(1, Number(timeMinutes) || 10),
     status: 'waiting',
     players: [],
     currentPlayer: 0,
@@ -50,7 +52,7 @@ export function autoStartIfReady(game) {
   return game;
 }
 
-export function addPlayer(game, { userId, username, socketId }) {
+export function addPlayer(game, { userId, username, socketId, isBot = false }) {
   if (game.status !== 'waiting') throw new Error('Game has already started');
   if (game.players.length >= game.maxPlayers) throw new Error('Room is full');
 
@@ -61,12 +63,12 @@ export function addPlayer(game, { userId, username, socketId }) {
     existingPlayer.socketId = socketId;
     existingPlayer.connected = true;
     delete existingPlayer.disconnectedAt;
-    return autoStartIfReady(game);
+    return game;
   }
 
   const color = LUDO_COLORS[game.players.length];
-  game.players.push({ userId, username: username || 'Player', socketId, color, connected: true, tokens: createTokens() });
-  return autoStartIfReady(game);
+  game.players.push({ userId, username: username || 'Player', socketId, isBot, color, connected: true, tokens: createTokens() });
+  return game;
 }
 
 export function reconnectPlayer(game, userId, socketId, username) {
