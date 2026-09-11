@@ -198,7 +198,7 @@ export function createLudoSocket(io) {
         if (socket.data.roomCode) throw new Error('You are already in a room');
         const code = createRoomCode();
         const room = { code, game: createGame(code, singlePlayer ? 2 : maxPlayers, timeMinutes), cleanupTimer: null, botTimer: null };
-        addPlayer(room.game, { ...socket.data.user, socketId: socket.id });
+        addPlayer(room.game, { userId: socket.data.user.id, username: socket.data.user.username, socketId: socket.id });
         if (singlePlayer) {
           addPlayer(room.game, { userId: BOT_USER_ID, username: 'BKR Bot', isBot: true });
           startGame(room.game, socket.data.user.id);
@@ -228,7 +228,7 @@ export function createLudoSocket(io) {
         if (existingPlayer) {
           reconnectPlayer(room.game, socket.data.user.id, socket.id, socket.data.user.username);
         } else {
-          addPlayer(room.game, { ...socket.data.user, socketId: socket.id });
+          addPlayer(room.game, { userId: socket.data.user.id, username: socket.data.user.username, socketId: socket.id });
         }
 
         socket.data.roomCode = code;
