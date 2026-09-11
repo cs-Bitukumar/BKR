@@ -269,10 +269,10 @@ export function createLudoSocket(io) {
         guardRate(socket);
         const room = getRoom(socket, roomCode);
         const result = rollDice(room.game, socket.data.user.id);
-        success(ack, { value: result.value, validMoves: result.validMoves, game: publicState(room) });
-        io.to(room.code).emit('diceRolled', { value: result.value, playerId: socket.data.user.id, validMoves: result.validMoves });
+        success(ack, { value: result.value, validMoves: result.validMoves, turnForfeited: result.turnForfeited, game: publicState(room) });
+        io.to(room.code).emit('diceRolled', { value: result.value, playerId: socket.data.user.id, validMoves: result.validMoves, turnForfeited: result.turnForfeited });
         emitState(io, room);
-        if (!result.validMoves.length) {
+        if (!result.validMoves.length && !result.turnForfeited) {
           room.game.diceValue = null;
           room.game.diceRolled = false;
           if (result.value !== 6) advanceTurn(room.game);

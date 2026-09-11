@@ -59,14 +59,20 @@ function LudoBoard({ game, userId, validMoves, onMove }) {
         {Array.from({ length: 225 }, (_, index) => {
           const row = Math.floor(index / 15)
           const column = index % 15
-          return <div className={cellClass(row, column)} key={`${row}-${column}`} />
+          const classes = cellClass(row, column)
+          const isSafe = classes.includes('is-safe')
+          return <div className={classes} key={`${row}-${column}`}>{isSafe && <span className="ludo-safe-star" aria-hidden="true">★</span>}</div>
         })}
+        <div className="ludo-base ludo-base--red" aria-hidden="true"><span>RED</span></div>
+        <div className="ludo-base ludo-base--green" aria-hidden="true"><span>GREEN</span></div>
+        <div className="ludo-base ludo-base--yellow" aria-hidden="true"><span>YELLOW</span></div>
+        <div className="ludo-base ludo-base--blue" aria-hidden="true"><span>BLUE</span></div>
         {tokens.map(({ player, position, tokenIndex }) => {
           const [row, column] = positionForToken(player.color, position, tokenIndex)
           const isMovable = player.userId === userId && currentPlayer?.userId === userId && validMoves.includes(tokenIndex)
           return <button className={`ludo-token token-${player.color}${isMovable ? ' is-movable' : ''}`} style={{ '--token-row': row, '--token-column': column }} disabled={!isMovable} onClick={() => onMove(tokenIndex)} key={`${player.userId}-${tokenIndex}`} aria-label={`${player.username} ${player.color} token ${tokenIndex + 1}`}><span>{tokenIndex + 1}</span></button>
         })}
-        <div className="ludo-home-mark">HOME</div>
+        <div className="ludo-home-mark"><span>HOME</span></div>
       </div>
     </div>
   )

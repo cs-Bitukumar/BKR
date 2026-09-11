@@ -117,6 +117,29 @@ assert.equal(botGame.status, 'playing');
 assert.equal(botGame.players[1].isBot, true);
 assert.deepEqual(rollDice(botGame, 'human', () => 0.999).validMoves, [0, 1, 2, 3]);
 
+const threeSixGame = createGame('TEST-THREE-SIXES', 2);
+addPlayer(threeSixGame, { userId: 'six-one' });
+addPlayer(threeSixGame, { userId: 'six-two' });
+startGame(threeSixGame, 'six-one');
+rollDice(threeSixGame, 'six-one', () => 0.999);
+moveToken(threeSixGame, 'six-one', 0);
+rollDice(threeSixGame, 'six-one', () => 0.999);
+moveToken(threeSixGame, 'six-one', 1);
+const forfeitedSix = rollDice(threeSixGame, 'six-one', () => 0.999);
+assert.equal(forfeitedSix.turnForfeited, true);
+assert.equal(threeSixGame.currentPlayer, 1, 'three consecutive sixes forfeit the turn');
+
+const homeBonusGame = createGame('TEST-HOME-BONUS', 2);
+addPlayer(homeBonusGame, { userId: 'home-one' });
+addPlayer(homeBonusGame, { userId: 'home-two' });
+startGame(homeBonusGame, 'home-one');
+homeBonusGame.players[0].tokens[0] = 56;
+homeBonusGame.diceValue = 1;
+homeBonusGame.diceRolled = true;
+const homeMove = moveToken(homeBonusGame, 'home-one', 0);
+assert.equal(homeMove.extraTurn, true, 'reaching home grants another turn');
+assert.equal(homeBonusGame.currentPlayer, 0);
+
 const fullRoomRequiresCapacity = createGame('TEST08', 4);
 addPlayer(fullRoomRequiresCapacity, { userId: 'x', username: 'X', socketId: 'x-socket' });
 addPlayer(fullRoomRequiresCapacity, { userId: 'y', username: 'Y', socketId: 'y-socket' });
