@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import '../dashboard/DashboardPage.css'
+import DashboardTopBar from '../dashboard/components/DashboardTopBar'
+import DashboardBottomNav from '../dashboard/components/DashboardBottomNav'
 import './SpinnerPage.css'
 
 const segments = [
@@ -55,12 +58,10 @@ function SpinnerPage() {
   const wheelBackground = `conic-gradient(${segments.map((segment, index) => `${segment.color} ${index * 12.5}% ${(index + 1) * 12.5}%`).join(', ')})`
 
   return (
-    <main className="spinner-page">
+    <main className="dashboard-page spinner-page">
+      <DashboardTopBar />
       <div className="spinner-shell">
-        <header className="spinner-topbar">
-          <div className="spinner-brand"><span className="spinner-brand-mark">BKR</span><div><p className="spinner-eyebrow">Quick play</p><h1>Lucky Spinner</h1></div></div>
-          <Link className="spinner-back" to="/dashboard"><span className="material-symbols-outlined">arrow_back</span><span>Dashboard</span></Link>
-        </header>
+        <div className="spinner-route-head"><div><span className="spinner-kicker">Dashboard / Quick play</span><h1>Lucky Spinner</h1><p>Points challenge · no wallet balance or stake involved</p></div><Link className="spinner-back" to="/dashboard"><span className="material-symbols-outlined">arrow_back</span><span>Dashboard</span></Link></div>
 
         <section className="spinner-layout">
           <div className="spinner-card spinner-stage">
@@ -84,6 +85,7 @@ function SpinnerPage() {
           </aside>
         </section>
       </div>
+      <DashboardBottomNav activeLabel="Spin" />
     </main>
   )
 }
