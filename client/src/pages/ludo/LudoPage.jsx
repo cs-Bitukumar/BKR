@@ -9,6 +9,27 @@ import LudoLobby from './components/LudoLobby'
 
 const SOCKET_URL = API_BASE_URL
 const LEGACY_ROOM_STORAGE_KEY = 'bkr_ludo_room'
+const DICE_PIP_POSITIONS = {
+  1: [5],
+  2: [1, 9],
+  3: [1, 5, 9],
+  4: [1, 3, 7, 9],
+  5: [1, 3, 5, 7, 9],
+  6: [1, 3, 4, 6, 7, 9],
+}
+
+function DiceFace({ value, isRolling, disabled, onRoll }) {
+  const pipPositions = DICE_PIP_POSITIONS[value] || []
+  return (
+    <button className={`ludo-dice${isRolling ? ' is-rolling' : ''}`} type="button" onClick={onRoll} disabled={disabled} aria-label={disabled ? (value ? `Dice showing ${value}` : 'Dice cannot be rolled now') : 'Roll dice'}>
+      {value ? (
+        <span className="ludo-dice-pips">
+          {Array.from({ length: 9 }, (_, index) => <i className={pipPositions.includes(index + 1) ? 'is-pip' : ''} key={index} />)}
+        </span>
+      ) : <span className="ludo-dice-brand">BKR</span>}
+    </button>
+  )
+}
 
 function getRoomStorageKey(userId) {
   return `bkr_ludo_room_${String(userId || 'anonymous')}`
@@ -30,6 +51,7 @@ function LudoPage() {
   const [notice, setNotice] = useState('')
   const [connection, setConnection] = useState('connecting')
   const [diceRolling, setDiceRolling] = useState(false)
+  const diceAnimationTimerRef = useRef(null)
   const lastGameStatusRef = useRef(null)
 
   const updateGame = useCallback((nextGame) => {
@@ -78,7 +100,12 @@ function LudoPage() {
     socket.on('tokenMoved', () => setValidMoves([]))
     socket.on('gameFinished', updateGame)
     sessionStorage.removeItem(LEGACY_ROOM_STORAGE_KEY)
-    return () => { socket.removeAllListeners(); socket.disconnect(); socketRef.current = null }
+    return () => {
+      socket.removeAllListeners()
+      socket.disconnect()
+      socketRef.current = null
+      window.clearTimeout(diceAnimationTimerRef.current)
+    }
   }, [roomStorageKey, token, updateGame, user.id])
 
   function emitAction(event, payload, callback) {
@@ -123,14 +150,20 @@ function LudoPage() {
 
   function startGame() { emitAction('startGame', { roomCode }) }
 
-  function leaveRoom() {
+  function leaveRoom(destination = '/ludo') {
     emitAction('leaveRoom', { roomCode }, () => {
       setGame(null)
       setRoomCode('')
       sessionStorage.removeItem(roomStorageKey)
       setNotice('You left the room.')
-      navigate('/ludo', { replace: true })
+      navigate(destination, { replace: true })
     })
+  }
+
+  function handleDashboardBack(event) {
+    if (!game) return
+    event.preventDefault()
+    leaveRoom('/dashboard')
   }
 
   function copyRoomCode() {
@@ -139,8 +172,9 @@ function LudoPage() {
 
   function rollDice() {
     setDiceRolling(true)
-    emitAction('rollDice', { roomCode }, (response) => { setDiceRolling(false); updateGame(response.game) })
-    window.setTimeout(() => setDiceRolling(false), 1200)
+    emitAction('rollDice', { roomCode }, (response) => updateGame(response.game))
+    window.clearTimeout(diceAnimationTimerRef.current)
+    diceAnimationTimerRef.current = window.setTimeout(() => setDiceRolling(false), 700)
   }
 
   function moveToken(tokenIndex) {
@@ -159,7 +193,7 @@ function LudoPage() {
       <div className="ludo-shell">
         <header className="ludo-topbar">
           <div className="ludo-brand"><span className="ludo-brand-mark">BKR</span><div><h1>BKR Ludo</h1><p>Private multiplayer rooms</p></div></div>
-          <Link className="ludo-back" to="/dashboard"><span className="material-symbols-outlined">arrow_back</span><span>Back to dashboard</span></Link>
+          <Link className="ludo-back" to="/dashboard" onClick={handleDashboardBack}><span className="material-symbols-outlined">arrow_back</span><span>Back to dashboard</span></Link>
         </header>
 
         {error && <div className="ludo-error" role="alert">{error}</div>}
@@ -174,7 +208,6 @@ function LudoPage() {
         {game?.status === 'waiting' && <section className="ludo-card ludo-room-panel ludo-room-panel--waiting">
           <div className="ludo-room-header">
             <div><span className="ludo-kicker">Private room</span><h2>Waiting for players</h2><div className="ludo-room-code">{roomCode}<button className="ludo-copy-btn" type="button" onClick={copyRoomCode} aria-label="Copy room code"><span className="material-symbols-outlined">content_copy</span></button></div></div>
-            <button className="ludo-secondary-btn" type="button" onClick={leaveRoom}>Leave</button>
           </div>
           <div className="ludo-room-status">
             <span className={`ludo-status-pill ${game.players.length >= game.maxPlayers ? 'is-ready' : ''}`}>
@@ -190,14 +223,10 @@ function LudoPage() {
 
         {game?.status === 'playing' && <section className="ludo-layout ludo-live-transition">
           <div className="ludo-card ludo-game-layout ludo-live-board-shell">
-            <div className="ludo-transition-banner">
-              <span className="ludo-transition-badge">Room full</span>
-              <strong>Game live for all players</strong>
-            </div>
             <div className="ludo-game-top"><p>Turn {game.turnNumber} · {isOwnTurn ? 'Your move' : `${currentPlayer?.username}'s move`}</p><span className="ludo-turn-badge" style={turnStyle}><i />{currentPlayer?.color} turn</span></div>
             <div className="ludo-players-strip">{game.players.map((player) => <div className={`ludo-mini-player${player.userId === currentPlayer?.userId ? ' is-current' : ''}`} style={{ '--player-color': `var(--ludo-${player.color})` }} key={player.userId}><i />{player.username}{player.userId === ownPlayer?.userId && <b>YOU</b>}{!player.connected && <b>OFFLINE</b>}</div>)}</div>
             <LudoBoard game={game} userId={ownPlayer?.userId} validMoves={validMoves} onMove={moveToken} />
-            <div className="ludo-controls"><div className="ludo-dice-box"><div className={`ludo-dice${diceRolling ? ' is-rolling' : ''}`}>{game.diceValue || '—'}</div><div className="ludo-dice-copy"><strong>{isOwnTurn ? (game.diceValue ? (validMoves.length ? 'Choose a token' : 'No valid move') : 'Roll the dice') : `Waiting for ${currentPlayer?.username}`}</strong><span>{game.diceValue ? `${validMoves.length} valid token${validMoves.length === 1 ? '' : 's'}` : 'A six brings a token out and grants another turn.'}</span></div></div><div className="ludo-game-actions"><button className="ludo-primary-btn" type="button" onClick={rollDice} disabled={!isOwnTurn || Boolean(game.diceValue) || diceRolling}>Roll dice</button><button className="ludo-secondary-btn" type="button" onClick={leaveRoom}>Leave</button></div></div>
+            <div className="ludo-dice-box ludo-dice-box--enhanced"><DiceFace value={game.diceValue} isRolling={diceRolling} disabled={!isOwnTurn || Boolean(game.diceValue) || diceRolling} onRoll={rollDice} /><div className="ludo-dice-copy"><strong>{isOwnTurn ? (game.diceValue ? (validMoves.length ? 'Choose a token' : 'No valid move') : 'Tap the dice to roll') : `Waiting for ${currentPlayer?.username}`}</strong><span>{game.diceValue ? `${validMoves.length} valid token${validMoves.length === 1 ? '' : 's'}` : 'Tap the dice when it is your turn. A six brings a token out and grants another turn.'}</span></div></div>
           </div>
         </section>}
 

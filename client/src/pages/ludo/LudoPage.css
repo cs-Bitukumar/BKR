@@ -23,3 +23,21 @@
 .ludo-home-mark span{display:grid;place-items:center;width:58%;height:58%;border-radius:50%;color:#fff;background:rgba(26,31,26,.76);font:800 clamp(.35rem,1vw,.55rem) 'Space Mono',monospace;letter-spacing:.04em}
 .ludo-token{z-index:3;border-width:3px;box-shadow:0 3px 0 rgba(0,0,0,.25),0 4px 12px rgba(0,0,0,.28)}
 .ludo-token.is-movable{box-shadow:0 0 0 4px #fff,0 0 0 7px var(--token-color),0 6px 18px rgba(0,0,0,.3)}
+
+/* The enhanced dice stays visible during the short automatic pass, so a
+   player can always see what was rolled. Before the first roll it shows BKR. */
+.ludo-dice-box--enhanced{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:-4px;padding:14px 16px;border:1px solid rgba(57,255,20,.14);border-radius:18px;background:linear-gradient(135deg,rgba(57,255,20,.08),rgba(255,255,255,.025));}
+.ludo-controls .ludo-dice-box{display:none}
+.ludo-dice{position:relative;display:grid;place-items:center;width:72px;height:72px;border:0;border-radius:18px;color:#ecffe9;background:linear-gradient(145deg,#d9ffd1 0%,#62ef4e 38%,#1c9e24 100%);box-shadow:inset 0 2px 3px rgba(255,255,255,.8),inset 0 -7px 12px rgba(0,77,10,.3),0 8px 18px rgba(10,85,17,.3),0 0 0 3px rgba(57,255,20,.2);transform:rotate(-3deg);transition:transform .2s ease,filter .2s ease;}
+.ludo-dice::after{content:'';position:absolute;inset:5px;border:1px solid rgba(255,255,255,.35);border-radius:14px;pointer-events:none;}
+.ludo-dice-brand{position:relative;z-index:1;color:#092407;font:900 .88rem Sora,sans-serif;letter-spacing:.12em;text-shadow:0 1px 0 rgba(255,255,255,.55);}
+.ludo-dice-pips{position:relative;z-index:1;display:grid;grid-template-columns:repeat(3,11px);grid-template-rows:repeat(3,11px);gap:5px;}
+.ludo-dice-pips i{width:11px;height:11px;border-radius:50%;background:transparent;}
+.ludo-dice-pips i.is-pip{background:#0b4d13;box-shadow:inset 1px 1px 2px rgba(255,255,255,.35),0 1px 1px rgba(0,45,4,.3);}
+.ludo-dice.is-rolling{animation:ludo-dice-roll .55s cubic-bezier(.35,.08,.25,1) 2;}
+.ludo-dice-box--enhanced .ludo-dice-copy{min-width:180px;}
+.ludo-controls{display:flex;justify-content:flex-end;}
+.ludo-dice{cursor:pointer;}
+.ludo-dice:hover:not(:disabled){filter:brightness(1.08);transform:rotate(-3deg) translateY(-2px) scale(1.03);}
+.ludo-dice:focus-visible{outline:3px solid #fff;outline-offset:4px;}
+.ludo-dice:disabled{cursor:not-allowed;filter:saturate(.55);opacity:.62;}
