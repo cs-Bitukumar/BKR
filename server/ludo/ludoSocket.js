@@ -20,6 +20,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
 const rooms = new Map();
 const ACTION_WINDOW_MS = 700;
 const CLEANUP_DELAY_MS = 120000;
+const NO_MOVE_DISPLAY_MS = 1000;
 
 function createRoomCode() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -36,6 +37,12 @@ function normalizeRoomCode(roomCode) {
 
 function publicState(room) {
   return serializeGame(room.game);
+}
+
+function clearRoomTimer(room, timerName) {
+  if (!room?.[timerName]) return;
+  clearTimeout(room[timerName]);
+  room[timerName] = null;
 }
 
 export function normalizeSocketRoom(socket, roomMap = rooms) {
@@ -62,6 +69,26 @@ function emitState(io, room) {
   io.to(room.code).emit('gameState', publicState(room));
 }
 
+function scheduleNoMoveResolution(io, room, userId, value) {
+  clearRoomTimer(room, 'passTimer');
+  room.passTimer = setTimeout(() => {
+    room.passTimer = null;
+    const currentPlayer = getCurrentPlayer(room.game);
+    if (
+      room.game.status !== 'playing' ||
+      currentPlayer?.userId !== userId ||
+      !room.game.diceRolled ||
+      room.game.diceValue !== value
+    ) return;
+
+    room.game.diceValue = null;
+    room.game.diceRolled = false;
+    if (value !== 6) advanceTurn(room.game);
+    emitState(io, room);
+    scheduleBotTurn(io, room);
+  }, NO_MOVE_DISPLAY_MS);
+}
+
 function scheduleBotTurn(io, room) {
   if (room.botTimer || room.game.status !== 'playing' || !room.game.players.some((player) => !player.isBot) || getCurrentPlayer(room.game)?.userId !== BOT_USER_ID) return;
   room.botTimer = setTimeout(() => {
@@ -79,12 +106,9 @@ function scheduleBotTurn(io, room) {
         emitState(io, room);
         if (moveResult.winner) io.to(room.code).emit('gameFinished', publicState(room));
       } else {
-        room.game.diceValue = null;
-        room.game.diceRolled = false;
-        if (result.value !== 6) advanceTurn(room.game);
-        emitState(io, room);
+        scheduleNoMoveResolution(io, room, BOT_USER_ID, result.value);
       }
-      scheduleBotTurn(io, room);
+      if (result.validMoves.length) scheduleBotTurn(io, room);
     } catch {
       room.game.diceValue = null;
       room.game.diceRolled = false;
@@ -111,7 +135,8 @@ export function detachSocketFromRoom(io, socket, roomCodeOverride, roomMap = roo
       const wasConnected = player.connected;
       removePlayer(room.game, socket.data.user.id, true);
       if (room.game.players.length === 0 || room.game.players.every((item) => item.isBot)) {
-        if (room.botTimer) clearTimeout(room.botTimer);
+        clearRoomTimer(room, 'botTimer');
+        clearRoomTimer(room, 'passTimer');
         roomMap.delete(room.code);
       } else if (wasConnected) {
         io.to(room.code).emit('playerLeft', publicState(room));
@@ -164,7 +189,8 @@ function scheduleDisconnectedCleanup(io, room, userId) {
     const removedIndex = room.game.players.findIndex((item) => item.userId === userId);
     room.game.players = room.game.players.filter((item) => item.userId !== userId);
     if (room.game.players.length === 0 || room.game.players.every((item) => item.isBot)) {
-      if (room.botTimer) clearTimeout(room.botTimer);
+      clearRoomTimer(room, 'botTimer');
+      clearRoomTimer(room, 'passTimer');
       rooms.delete(room.code);
       return;
     }
@@ -197,7 +223,7 @@ export function createLudoSocket(io) {
         normalizeSocketRoom(socket);
         if (socket.data.roomCode) throw new Error('You are already in a room');
         const code = createRoomCode();
-        const room = { code, game: createGame(code, singlePlayer ? 2 : maxPlayers, timeMinutes), cleanupTimer: null, botTimer: null };
+        const room = { code, game: createGame(code, singlePlayer ? 2 : maxPlayers, timeMinutes), cleanupTimer: null, botTimer: null, passTimer: null };
         addPlayer(room.game, { userId: socket.data.user.id, username: socket.data.user.username, socketId: socket.id });
         if (singlePlayer) {
           addPlayer(room.game, { userId: BOT_USER_ID, username: 'BKR Bot', isBot: true });
@@ -273,10 +299,9 @@ export function createLudoSocket(io) {
         io.to(room.code).emit('diceRolled', { value: result.value, playerId: socket.data.user.id, validMoves: result.validMoves, turnForfeited: result.turnForfeited });
         emitState(io, room);
         if (!result.validMoves.length && !result.turnForfeited) {
-          room.game.diceValue = null;
-          room.game.diceRolled = false;
-          if (result.value !== 6) advanceTurn(room.game);
-          emitState(io, room);
+          // Keep the rolled value on the shared board long enough for every
+          // player to see it before the automatic pass changes the turn.
+          scheduleNoMoveResolution(io, room, socket.data.user.id, result.value);
         }
         scheduleBotTurn(io, room);
       } catch (error) { failure(socket, ack, error.message); }
@@ -298,12 +323,20 @@ export function createLudoSocket(io) {
     socket.on('leaveRoom', ({ roomCode } = {}, ack) => {
       try {
         const room = getRoom(socket, roomCode);
+        const leavingCurrentPlayer = getCurrentPlayer(room.game)?.userId === socket.data.user.id;
+        clearRoomTimer(room, 'passTimer');
         removePlayer(room.game, socket.data.user.id, true);
+        if (leavingCurrentPlayer && room.game.status === 'playing') {
+          room.game.diceValue = null;
+          room.game.diceRolled = false;
+          advanceTurn(room.game);
+        }
         socket.leave(room.code);
         socket.data.roomCode = null;
         success(ack, { game: publicState(room) });
         if (room.game.players.length === 0 || room.game.players.every((item) => item.isBot)) {
-          if (room.botTimer) clearTimeout(room.botTimer);
+          clearRoomTimer(room, 'botTimer');
+          clearRoomTimer(room, 'passTimer');
           rooms.delete(room.code);
         }
         else { io.to(room.code).emit('playerLeft', publicState(room)); emitState(io, room); }
@@ -324,6 +357,7 @@ export function createLudoSocket(io) {
       }
       removePlayer(room.game, socket.data.user.id);
       if (getCurrentPlayer(room.game)?.userId === socket.data.user.id && room.game.status === 'playing') {
+        clearRoomTimer(room, 'passTimer');
         room.game.diceValue = null;
         room.game.diceRolled = false;
         advanceTurn(room.game);
