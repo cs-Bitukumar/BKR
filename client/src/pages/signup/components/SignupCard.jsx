@@ -55,64 +55,68 @@ function SignupCard() {
 
       <form className="signup-form" onSubmit={handleSubmit}>
         <div className="field-group">
-          <label htmlFor="username">Username</label>
+          
           <div className="input-wrap">
             <input
               id="username"
               type="text"
-              placeholder="Bitu Kumar"
+              placeholder=" "
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="nickname"
               minLength={3}
               required
             />
+            <label htmlFor="username">Username</label>
           </div>
         </div>
 
         <div className="field-group">
-          <label htmlFor="signup-email">Email Address</label>
+          
           <div className="input-wrap">
             <input
               id="signup-email"
               type="email"
-              placeholder="you@example.com"
+              placeholder=" "
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
               required
             />
+            <label htmlFor="signup-email">Email Address</label>
           </div>
         </div>
 
         <div className="field-group">
-          <label htmlFor="signup-phone">Mobile Number <span>(optional)</span></label>
+         
           <div className="input-wrap">
             <input
               id="signup-phone"
               type="tel"
-              placeholder="+91 98765 43210"
+              placeholder=" "
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               autoComplete="tel"
               inputMode="tel"
             />
+             <label htmlFor="signup-phone">Mobile Number <span>(optional)</span></label>
           </div>
         </div>
 
         <div className="field-group">
-          <label htmlFor="signup-password">Password</label>
+         
           <div className="input-wrap">
             <input
               id="signup-password"
               type={showPassword ? 'text' : 'password'}
-              placeholder="********"
+              placeholder=" "
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
               minLength={8}
               required
             />
+             <label htmlFor="signup-password">Password</label>
             <button
               className="password-toggle"
               type="button"
@@ -127,18 +131,19 @@ function SignupCard() {
         </div>
 
         <div className="field-group">
-          <label htmlFor="confirm-password">Confirm Password</label>
+         
           <div className="input-wrap">
             <input
               id="confirm-password"
               type={showConfirm ? 'text' : 'password'}
-              placeholder="********"
+              placeholder=" "
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               autoComplete="new-password"
               minLength={8}
               required
             />
+             <label htmlFor="confirm-password">Confirm Password</label>
             <button
               className="password-toggle"
               type="button"

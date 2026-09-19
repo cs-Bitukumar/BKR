@@ -18,6 +18,7 @@ import adminRoutes from './routes/admin.js';
 import http from 'http';
 import { Server as IOServer } from 'socket.io';
 import { createLudoSocket } from './ludo/ludoSocket.js';
+import { createSpinnerSocket } from './spinner/spinnerSocket.js';
 
 dotenv.config();
 //console.log("ODDS_API_KEY =", process.env.ODDS_API_KEY);
@@ -100,6 +101,7 @@ const io = new IOServer(server, {
 });
 
 createLudoSocket(io.of('/ludo'));
+createSpinnerSocket(io.of('/spinner'));
 
 const PORT = process.env.PORT || 4000;
 

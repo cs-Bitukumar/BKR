@@ -112,6 +112,19 @@ export function getWalletTransactions(user) {
   return Array.isArray(walletState.transactions) ? walletState.transactions : []
 }
 
+/**
+ * Keeps the locally cached wallet snapshot aligned with the server balance the
+ * Ludo socket reports after a stake is debited, refunded or paid out.
+ */
+export function syncWalletBalance(user, balance) {
+  const nextBalance = Number(balance)
+  const currentState = readWalletState(user)
+  if (!Number.isFinite(nextBalance) || nextBalance === currentState.balance) {
+    return currentState
+  }
+  return saveWalletState(user, { ...currentState, balance: nextBalance })
+}
+
 export function saveWalletState(user, state) {
   if (typeof window === 'undefined') {
     return normalizeWalletState(state)
