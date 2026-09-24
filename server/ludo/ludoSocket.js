@@ -2,13 +2,26 @@ import jwt from 'jsonwebtoken';
 import User from '../models/userModel.js';
 import '../config/env.js';
 import {
+  collectStakes,
+  createEscrow,
+  ensureStakeAffordable,
+  generateRoomCode,
+  normalizeRoomCode,
+  refundOnAbandon,
+  refundStakes,
+  settleWinner,
+} from '../shared/roomWallet.js';
+import {
   addPlayer,
   advanceTurn,
+  awardWalkover,
   BOT_USER_ID,
+  calculatePot,
   createGame,
   getCurrentPlayer,
   getPlayer,
   moveToken,
+  normalizeStake,
   reconnectPlayer,
   removePlayer,
   rollDice,
@@ -23,16 +36,7 @@ const CLEANUP_DELAY_MS = 120000;
 const NO_MOVE_DISPLAY_MS = 1000;
 
 function createRoomCode() {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  do {
-    code = Array.from({ length: 6 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('');
-  } while (rooms.has(code));
-  return code;
-}
-
-function normalizeRoomCode(roomCode) {
-  return String(roomCode || '').trim().toUpperCase();
+  return generateRoomCode(rooms);
 }
 
 function publicState(room) {
@@ -43,6 +47,15 @@ function clearRoomTimer(room, timerName) {
   if (!room?.[timerName]) return;
   clearTimeout(room[timerName]);
   room[timerName] = null;
+}
+
+// The last human player left in a live room wins by walkover, which pays out the
+// pot with a normal payout transaction instead of refunding the stakes.
+function resolveWalkover(io, room, leftUserId) {
+  const winner = awardWalkover(room.game, leftUserId);
+  if (!winner) return null;
+  settleWinner(io, room);
+  return winner;
 }
 
 export function normalizeSocketRoom(socket, roomMap = rooms) {
@@ -102,6 +115,7 @@ function scheduleBotTurn(io, room) {
       if (result.validMoves.length) {
         const tokenIndex = result.validMoves[Math.floor(Math.random() * result.validMoves.length)];
         const moveResult = moveToken(room.game, BOT_USER_ID, tokenIndex);
+        if (moveResult.winner) settleWinner(io, room);
         io.to(room.code).emit('tokenMoved', { ...moveResult, playerId: BOT_USER_ID });
         emitState(io, room);
         if (moveResult.winner) io.to(room.code).emit('gameFinished', publicState(room));
@@ -133,14 +147,24 @@ export function detachSocketFromRoom(io, socket, roomCodeOverride, roomMap = roo
     const player = getPlayer(room.game, socket.data.user.id);
     if (player) {
       const wasConnected = player.connected;
+      const remainingPlayers = room.game.players.filter((item) => item.userId !== socket.data.user.id);
+      const abandoned = remainingPlayers.length === 0 || remainingPlayers.every((item) => item.isBot);
+      // The walkover is decided while the leaving player is still seated and the
+      // collected stakes are still in escrow, so the survivor is paid the pot.
+      const walkover = abandoned ? null : resolveWalkover(io, room, socket.data.user.id);
+      // Refund while the leaving player is still known, so their open client can
+      // refresh the wallet balance before the room disappears.
+      if (abandoned) refundOnAbandon(io, room);
       removePlayer(room.game, socket.data.user.id, true);
-      if (room.game.players.length === 0 || room.game.players.every((item) => item.isBot)) {
+      if (room.game.currentPlayer >= room.game.players.length) room.game.currentPlayer = 0;
+      if (abandoned) {
         clearRoomTimer(room, 'botTimer');
         clearRoomTimer(room, 'passTimer');
         roomMap.delete(room.code);
-      } else if (wasConnected) {
-        io.to(room.code).emit('playerLeft', publicState(room));
+      } else {
+        if (wasConnected && !walkover) io.to(room.code).emit('playerLeft', publicState(room));
         emitState(io, room);
+        if (walkover) io.to(room.code).emit('gameFinished', publicState(room));
       }
     }
   }
@@ -183,20 +207,26 @@ function scheduleDisconnectedCleanup(io, room, userId) {
   if (!player) return;
   const disconnectedAt = Date.now();
   player.disconnectedAt = disconnectedAt;
-  setTimeout(() => {
+  setTimeout(async () => {
     const current = getPlayer(room.game, userId);
     if (!current || current.connected || current.disconnectedAt !== disconnectedAt) return;
-    const removedIndex = room.game.players.findIndex((item) => item.userId === userId);
-    room.game.players = room.game.players.filter((item) => item.userId !== userId);
-    if (room.game.players.length === 0 || room.game.players.every((item) => item.isBot)) {
+    const remainingPlayers = room.game.players.filter((item) => item.userId !== userId);
+    if (remainingPlayers.length === 0 || remainingPlayers.every((item) => item.isBot)) {
       clearRoomTimer(room, 'botTimer');
       clearRoomTimer(room, 'passTimer');
+      await refundStakes(io, room, room.escrow?.collected && !room.escrow.settled ? room.escrow.entries : []);
+      room.escrow = createEscrow();
       rooms.delete(room.code);
       return;
     }
+    const walkover = resolveWalkover(io, room, userId);
+    const removedIndex = room.game.players.findIndex((item) => item.userId === userId);
+    room.game.players = room.game.players.filter((item) => item.userId !== userId);
     if (removedIndex < room.game.currentPlayer) room.game.currentPlayer -= 1;
     if (room.game.currentPlayer >= room.game.players.length) room.game.currentPlayer = 0;
     emitState(io, room);
+    // The reconnect window expired, so the player who stayed wins the pot.
+    if (walkover) io.to(room.code).emit('gameFinished', publicState(room));
   }, CLEANUP_DELAY_MS);
 }
 
@@ -216,29 +246,39 @@ export function createLudoSocket(io) {
   });
 
   io.on('connection', (socket) => {
-    socket.on('createRoom', ({ maxPlayers, singlePlayer, timeMinutes } = {}, ack) => {
+    socket.on('createRoom', async ({ maxPlayers, singlePlayer, timeMinutes, stake } = {}, ack) => {
       try {
         guardRate(socket);
         detachSocketFromRoom(io, socket);
         normalizeSocketRoom(socket);
         if (socket.data.roomCode) throw new Error('You are already in a room');
+        const stakeAmount = normalizeStake(stake);
+        await ensureStakeAffordable(socket.data.user.id, stakeAmount);
         const code = createRoomCode();
-        const room = { code, game: createGame(code, singlePlayer ? 2 : maxPlayers, timeMinutes), cleanupTimer: null, botTimer: null, passTimer: null };
+        const room = { code, gameLabel: 'Ludo', game: createGame(code, singlePlayer ? 2 : maxPlayers, timeMinutes, stakeAmount), escrow: createEscrow(), cleanupTimer: null, botTimer: null, passTimer: null };
         addPlayer(room.game, { userId: socket.data.user.id, username: socket.data.user.username, socketId: socket.id });
-        if (singlePlayer) {
-          addPlayer(room.game, { userId: BOT_USER_ID, username: 'BKR Bot', isBot: true });
-          startGame(room.game, socket.data.user.id);
-        }
         rooms.set(code, room);
         socket.data.roomCode = code;
         socket.join(code);
+        if (singlePlayer) {
+          addPlayer(room.game, { userId: BOT_USER_ID, username: 'BKR Bot', isBot: true });
+          startGame(room.game, socket.data.user.id);
+          try {
+            await collectStakes(io, room, calculatePot(room.game));
+          } catch (error) {
+            socket.leave(code);
+            socket.data.roomCode = null;
+            rooms.delete(code);
+            throw error;
+          }
+        }
         success(ack, { roomCode: code, game: publicState(room) });
         socket.emit('gameState', publicState(room));
         scheduleBotTurn(io, room);
       } catch (error) { failure(socket, ack, error.message); }
     });
 
-    socket.on('joinRoom', ({ roomCode } = {}, ack) => {
+    socket.on('joinRoom', async ({ roomCode } = {}, ack) => {
       try {
         guardRate(socket);
         detachSocketFromRoom(io, socket);
@@ -254,6 +294,7 @@ export function createLudoSocket(io) {
         if (existingPlayer) {
           reconnectPlayer(room.game, socket.data.user.id, socket.id, socket.data.user.username);
         } else {
+          await ensureStakeAffordable(socket.data.user.id, room.game.stake, 'join');
           addPlayer(room.game, { userId: socket.data.user.id, username: socket.data.user.username, socketId: socket.id });
         }
 
@@ -279,15 +320,25 @@ export function createLudoSocket(io) {
       } catch (error) { failure(socket, ack, error.message); }
     });
 
-    socket.on('startGame', ({ roomCode } = {}, ack) => {
+    socket.on('startGame', async ({ roomCode } = {}, ack) => {
+      let room = null;
       try {
         guardRate(socket);
-        const room = getRoom(socket, roomCode);
+        room = getRoom(socket, roomCode);
         startGame(room.game, socket.data.user.id);
+        await collectStakes(io, room, calculatePot(room.game));
         success(ack, { game: publicState(room) });
         io.to(room.code).emit('gameStarted', publicState(room));
         emitState(io, room);
-      } catch (error) { failure(socket, ack, error.message); }
+      } catch (error) {
+        // A stake that could not be collected must not leave the room locked in
+        // a started-but-unfunded state.
+        if (room?.game.status === 'playing' && !room.escrow.collected) {
+          room.game.status = 'waiting';
+          emitState(io, room);
+        }
+        failure(socket, ack, error.message);
+      }
     });
 
     socket.on('rollDice', ({ roomCode } = {}, ack) => {
@@ -312,6 +363,7 @@ export function createLudoSocket(io) {
         guardRate(socket);
         const room = getRoom(socket, roomCode);
         const result = moveToken(room.game, socket.data.user.id, Number(tokenIndex));
+        if (result.winner) settleWinner(io, room);
         success(ack, { result, game: publicState(room) });
         io.to(room.code).emit('tokenMoved', { ...result, playerId: socket.data.user.id });
         emitState(io, room);
@@ -320,12 +372,20 @@ export function createLudoSocket(io) {
       } catch (error) { failure(socket, ack, error.message); }
     });
 
-    socket.on('leaveRoom', ({ roomCode } = {}, ack) => {
+    socket.on('leaveRoom', async ({ roomCode } = {}, ack) => {
       try {
         const room = getRoom(socket, roomCode);
         const leavingCurrentPlayer = getCurrentPlayer(room.game)?.userId === socket.data.user.id;
+        const remainingPlayers = room.game.players.filter((item) => item.userId !== socket.data.user.id);
+        const roomAbandoned = remainingPlayers.length === 0 || remainingPlayers.every((item) => item.isBot);
+        // A player who walks out of a live game hands the pot to the survivor.
+        const walkover = roomAbandoned ? null : resolveWalkover(io, room, socket.data.user.id);
+        // Refund the collected stakes before the room is torn down. The leaving
+        // player is still registered, so their client receives the new balance.
+        if (roomAbandoned) refundOnAbandon(io, room);
         clearRoomTimer(room, 'passTimer');
         removePlayer(room.game, socket.data.user.id, true);
+        if (room.game.currentPlayer >= room.game.players.length) room.game.currentPlayer = 0;
         if (leavingCurrentPlayer && room.game.status === 'playing') {
           room.game.diceValue = null;
           room.game.diceRolled = false;
@@ -334,12 +394,16 @@ export function createLudoSocket(io) {
         socket.leave(room.code);
         socket.data.roomCode = null;
         success(ack, { game: publicState(room) });
-        if (room.game.players.length === 0 || room.game.players.every((item) => item.isBot)) {
+        if (roomAbandoned) {
           clearRoomTimer(room, 'botTimer');
           clearRoomTimer(room, 'passTimer');
           rooms.delete(room.code);
         }
-        else { io.to(room.code).emit('playerLeft', publicState(room)); emitState(io, room); }
+        else {
+          if (!walkover) io.to(room.code).emit('playerLeft', publicState(room));
+          emitState(io, room);
+          if (walkover) io.to(room.code).emit('gameFinished', publicState(room));
+        }
       } catch (error) { failure(socket, ack, error.message); }
     });
 

@@ -6,6 +6,13 @@ export const FINAL_POSITION = 57;
 export const BOT_USER_ID = 'ludo-bot';
 export const SAFE_CELLS = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
 export const START_CELLS = { red: 0, green: 13, yellow: 26, blue: 39 };
+// Two-player and three-player rooms seat the first two players in diagonal
+// yards (green/blue or red/yellow) so they always sit opposite each other.
+export const TWO_PLAYER_COLORS = ['green', 'blue'];
+export const THREE_PLAYER_COLORS = ['red', 'yellow', 'green'];
+const TRACK_LENGTH = 52;
+export const STAKE_OPTIONS = [1, 5, 10, 20, 100];
+export const DEFAULT_STAKE = 0;
 
 const PLAYER_HOME_PATHS = {
   red: 0,
@@ -22,17 +29,36 @@ function createTokens() {
   return Array.from({ length: TOKENS_PER_PLAYER }, () => -1);
 }
 
-export function createGame(roomId, maxPlayers = MAX_PLAYERS, timeMinutes = 10) {
+// A stake of 0 keeps the original free-play behaviour. Any positive amount has
+// to match one of the wallet bet options offered by the client.
+export function normalizeStake(value) {
+  const stake = Number(value);
+  if (!Number.isFinite(stake) || stake <= 0) return DEFAULT_STAKE;
+  if (!STAKE_OPTIONS.includes(stake)) throw new Error('Choose a valid stake amount');
+  return stake;
+}
+
+// Every seat contributes one stake to the pot. Bot seats are funded by the
+// house so a solo win still pays out a full pot.
+export function calculatePot(game) {
+  const stake = Number(game?.stake) || 0;
+  if (stake <= 0) return 0;
+  return stake * (Array.isArray(game?.players) ? game.players.length : 0);
+}
+
+export function createGame(roomId, maxPlayers = MAX_PLAYERS, timeMinutes = 10, stake = DEFAULT_STAKE) {
   return {
     roomId,
     maxPlayers: Math.min(MAX_PLAYERS, Math.max(MIN_PLAYERS, Number(maxPlayers) || MAX_PLAYERS)),
     timeMinutes: Math.max(1, Number(timeMinutes) || 10),
+    stake: normalizeStake(stake),
     status: 'waiting',
     players: [],
     currentPlayer: 0,
     diceValue: null,
     diceRolled: false,
     winner: null,
+    winReason: null,
     turnNumber: 1,
     sixesInRow: 0,
   };
@@ -49,7 +75,23 @@ export function autoStartIfReady(game) {
   game.diceValue = null;
   game.diceRolled = false;
   game.winner = null;
+  game.winReason = null;
   return game;
+}
+
+// Two players always sit in opposite yards (green faces blue), three players
+// take the two opposite yards first, and a full room uses every yard.
+export function colorForSeat(maxPlayers, seatIndex) {
+  const seat = Math.max(0, Number(seatIndex) || 0);
+  if (Number(maxPlayers) === MIN_PLAYERS) return TWO_PLAYER_COLORS[seat % TWO_PLAYER_COLORS.length];
+  if (Number(maxPlayers) === 3) return THREE_PLAYER_COLORS[seat % THREE_PLAYER_COLORS.length];
+  return LUDO_COLORS[seat % LUDO_COLORS.length];
+}
+
+// Colours whose start cells are half a lap apart sit in opposite yards.
+export function areOppositeColors(firstColor, secondColor) {
+  const difference = Math.abs((START_CELLS[firstColor] ?? 0) - (START_CELLS[secondColor] ?? 0));
+  return difference === TRACK_LENGTH / 2;
 }
 
 export function addPlayer(game, { userId, username, socketId, isBot = false }) {
@@ -66,7 +108,7 @@ export function addPlayer(game, { userId, username, socketId, isBot = false }) {
     return game;
   }
 
-  const color = LUDO_COLORS[game.players.length];
+  const color = colorForSeat(game.maxPlayers, game.players.length);
   game.players.push({ userId, username: username || 'Player', socketId, isBot, color, connected: true, tokens: createTokens() });
   return game;
 }
@@ -103,6 +145,7 @@ export function startGame(game, userId) {
   game.diceValue = null;
   game.diceRolled = false;
   game.winner = null;
+  game.winReason = null;
   return game;
 }
 
@@ -119,8 +162,9 @@ export function getCurrentPlayer(game) {
 }
 
 export function getGlobalPosition(color, tokenPosition) {
-  if (tokenPosition < 0 || tokenPosition > 51) return null;
-  return (PLAYER_HOME_PATHS[color] + tokenPosition) % 52;
+  // Local position 50 is the turn into home; 51 onward is private lane.
+  if (tokenPosition < 0 || tokenPosition >= 51) return null;
+  return (PLAYER_HOME_PATHS[color] + tokenPosition) % TRACK_LENGTH;
 }
 
 export function canMoveToken(game, userId, tokenIndex, diceValue = game.diceValue) {
@@ -205,6 +249,7 @@ export function moveToken(game, userId, tokenIndex) {
 
   if (finished) {
     game.status = 'finished';
+    game.winReason = 'tokens';
     game.winner = { userId: player.userId, username: player.username, color: player.color };
   } else if (diceValue !== 6 && captured.length === 0 && !reachedHome) {
     advanceTurn(game);
@@ -219,9 +264,28 @@ export function moveToken(game, userId, tokenIndex) {
   };
 }
 
+// A live game is decided by walkover once every other seat has been abandoned,
+// so the remaining human player collects the pot instead of it being refunded.
+export function awardWalkover(game, leftUserId) {
+  if (game.status !== 'playing') return null;
+  const remaining = game.players.filter((player) => player.userId !== leftUserId);
+  const survivors = remaining.filter((player) => !player.isBot);
+  if (survivors.length !== 1) return null;
+
+  const [winner] = survivors;
+  game.status = 'finished';
+  game.winReason = 'walkover';
+  game.winner = { userId: winner.userId, username: winner.username, color: winner.color };
+  game.diceValue = null;
+  game.diceRolled = false;
+  game.sixesInRow = 0;
+  return game.winner;
+}
+
 export function serializeGame(game) {
   const publicGame = clone(game);
   publicGame.players = publicGame.players.map(({ socketId, ...player }) => player);
   delete publicGame.sixesInRow;
+  publicGame.pot = calculatePot(game);
   return publicGame;
 }

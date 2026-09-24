@@ -44,34 +44,36 @@ function LoginCard() {
 
       <form className="login-form" onSubmit={handleSubmit}>
         <div className="field-group">
-          <label htmlFor="email">Email Address</label>
+         
           <div className="input-wrap">
             <input
               id="email"
               type="email"
-              placeholder="name@domain.com"
+              placeholder=" "
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
               inputMode="email"
               required
             />
+             <label htmlFor="email">Email Address</label>
           </div>
         </div>
 
         <div className="field-group">
-          <label htmlFor="password">Password</label>
+          
           <div className="input-wrap">
             <input
               id="password"
               type={showPassword ? 'text' : 'password'}
-              placeholder="********"
+              placeholder=" "
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
               minLength={8}
               required
             />
+            <label htmlFor="password">Password</label>
             <button
               className="password-toggle"
               type="button"
@@ -107,7 +109,7 @@ function LoginCard() {
           Open Dashboard
         </Link>
         <Link className="portal-link portal-link-admin" to="/admin">
-          Open Admin Panel
+           Admin Panel
         </Link>
         <Link className="portal-link portal-link-wallet" to="/wallet">
           Open Wallet

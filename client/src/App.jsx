@@ -50,6 +50,7 @@ function AppRoutes() {
       <Route path="/ludo/play" element={protect(<LudoPage />)} />
       <Route path="/ludo" element={protect(<LudoPage />)} />
       <Route path="/spinner" element={protect(<SpinnerPage />)} />
+      <Route path="/spinner/play" element={protect(<SpinnerPage />)} />
       <Route path="/live-football" element={protect(<LiveFootballPage />)} />
       <Route path="/live-football/:id" element={protect(<LiveFootballDetail />)} />
       <Route path="/live/:id" element={protect(<LiveMatchDetail />)} />
