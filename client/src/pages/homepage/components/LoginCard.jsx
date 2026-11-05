@@ -9,6 +9,8 @@ function LoginCard() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
+  const [showRecoveryInfo, setShowRecoveryInfo] = useState(false)
+  const [recoveryRequested, setRecoveryRequested] = useState(false)
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const auth = useAuth()
@@ -16,6 +18,8 @@ function LoginCard() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError(null)
+    setShowRecoveryInfo(false)
+    setRecoveryRequested(false)
 
     const emailTrim = (email || '').trim().toLowerCase()
     const gmailRe = /^[^\s@]+@gmail\.com$/i
@@ -28,6 +32,7 @@ function LoginCard() {
       navigate('/dashboard')
     } catch (err) {
       setError(err.message)
+      setShowRecoveryInfo(err.message.includes('already logged in on another device'))
     } finally {
       setLoading(false)
     }
@@ -39,7 +44,7 @@ function LoginCard() {
 
       <header className="login-card-header">
         <h2>Welcome Back</h2>
-        <p>Access your dashboard, admin control panel, or wallet.</p>
+        <p>Access your dashboard, admin control panel, or virtual coins.</p>
       </header>
 
       <form className="login-form" onSubmit={handleSubmit}>
@@ -97,7 +102,13 @@ function LoginCard() {
           </Link>
         </div>
 
-        {error && <p className="form-error">{error}</p>}
+        {error && <p className="form-error" role="alert">{error}</p>}
+        {showRecoveryInfo && (
+          <div className="form-error" role="status">
+            <button className="recovery-link" type="button" onClick={() => setRecoveryRequested(true)}>Recover Account</button>
+            {recoveryRequested && <p>Secure recovery is not available yet because this account has no verified email or mobile recovery method. Please contact BKR support; your existing session remains active.</p>}
+          </div>
+        )}
 
         <button className="login-submit" type="submit" disabled={loading}>
           {loading ? 'Signing in...' : 'Login'}
@@ -112,7 +123,7 @@ function LoginCard() {
            Admin Panel
         </Link>
         <Link className="portal-link portal-link-wallet" to="/wallet">
-          Open Wallet
+          Open Virtual Coins
         </Link>
       </div>
 

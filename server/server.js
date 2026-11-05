@@ -15,6 +15,7 @@ import betRoutes from './routes/bets.js';
 import externalRoutes from './routes/external.js';
 import walletRoutes from './routes/wallet.js';
 import adminRoutes from './routes/admin.js';
+import complaintRoutes from './routes/complaints.js';
 import http from 'http';
 import { Server as IOServer } from 'socket.io';
 import { createLudoSocket } from './ludo/ludoSocket.js';
@@ -88,6 +89,7 @@ app.use('/api/matches', matchRoutes);
 app.use('/api/bets', betRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/complaints', complaintRoutes);
 app.use('/api/external', externalRoutes);
 
 app.use('/api/sports', sportsRoutes);

@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom'
 import BetSlipPanel from '../dashboard/components/BetSlipPanel'
 import { get, post } from '../../api/api'
 import { useAuth } from '../../context/AuthContext'
-import { formatCurrency, readWalletState, recordBetPlacement } from '../../utils/wallet'
 import { getScorecard } from '../../api/sportsApi'
 
 function parseTeamScores(match) {
@@ -61,9 +60,7 @@ function getLiveDetails(scorecardResponse, match) {
 }
 
 function LiveCricketPage() {
-  const { user, token, refreshUser } = useAuth()
-  const walletState = readWalletState(user)
-  const balanceLabel = formatCurrency(walletState.balance)
+  const { token } = useAuth()
   const [selectedBet, setSelectedBet] = useState(null)
   const [matches, setMatches] = useState([])
   const [loading, setLoading] = useState(true)
@@ -142,44 +139,27 @@ function LiveCricketPage() {
     setBetStatus('')
   }
 
-  async function handleConfirmBet({ stake }) {
+  async function handleConfirmBet() {
     if (!selectedBet) return
-
-    const amount = Number(stake)
-    if (!Number.isFinite(amount) || amount <= 0) {
-      setBetStatus('Please enter a valid bet amount.')
-      return
-    }
 
     if (placingBet) return
 
     setPlacingBet(true)
-    setBetStatus('Placing bet...')
+    setBetStatus('Saving free prediction...')
 
     try {
-      const response = await post(
+      await post(
         '/api/bets',
         {
           matchId: selectedBet.matchId,
           matchTitle: selectedBet.matchTitle,
           selection: selectedBet.selection,
-          amount,
           odds: selectedBet.odds,
         },
         token,
       )
 
-      if (response?.user) {
-        refreshUser(response.user)
-      }
-
-      recordBetPlacement(user, amount, {
-        matchTitle: selectedBet.matchTitle,
-        marketTitle: selectedBet.market,
-        selection: selectedBet.selection,
-      })
-
-      setBetStatus('Bet confirmed successfully.')
+      setBetStatus('Free prediction saved.')
       setSelectedBet(null)
     } catch (err) {
       setBetStatus(err.message || 'Could not confirm bet.')
@@ -208,13 +188,11 @@ function LiveCricketPage() {
             <span className="material-symbols-outlined live-brand-icon">sports_cricket</span>
             <div>
               <h1>Live Cricket</h1>
-              <p>All active cricket matches and betting markets.</p>
+              <p>Live cricket scores and free prediction options.</p>
             </div>
           </div>
 
-          <div className="live-wallet-balance">
-            <p>Available Balance</p>
-            <h1>{balanceLabel}</h1></div>
+          <div className="live-wallet-balance"><p>Free predictions</p><h1>No stake or prize</h1></div>
         </div>
       </header>
 

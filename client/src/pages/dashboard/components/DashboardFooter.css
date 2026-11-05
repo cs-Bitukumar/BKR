@@ -43,7 +43,8 @@
 }
 
 .footer-links a,
-.footer-legal button {
+.footer-legal button,
+.footer-legal a {
   color: var(--muted);
   text-align: left;
   padding: 0;
@@ -53,7 +54,8 @@
 }
 
 .footer-links a:hover,
-.footer-legal button:hover {
+.footer-legal button:hover,
+.footer-legal a:hover {
   color: var(--primary);
 }
 

@@ -7,17 +7,17 @@ function HeroSection() {
         <article className="glass hero-copy">
           <div className="chip eyebrow">
             <span className="chip-dot" />
-            <span>High-stakes kinetic system</span>
+            <span>Free-to-play gaming</span>
           </div>
 
           <h1>
-            Bet faster.
+            Play together.
             <br />
-            Read the <span>live edge</span>.
+            Follow the <span>live action</span>.
           </h1>
 
           <p>
-            A premium sports betting simulation built for momentum. Keep one eye on the
+            A free-to-play sports prediction experience built for momentum. Keep one eye on the
             scoreboard, one eye on the odds board, and move instantly when the market
             opens up.
           </p>
@@ -48,7 +48,7 @@ function HeroSection() {
           </div>
         </article>
 
-        <aside className="glass hero-visual" aria-label="Featured betting visual">
+        <aside className="glass hero-visual" aria-label="Featured gaming visual">
           <div className="visual-top">
             <div>
               <h3>Trending Matches</h3>
@@ -58,7 +58,7 @@ function HeroSection() {
           </div>
 
           <div className="hero-art">
-            <img src="/assets/hero.png" alt="BKR sports betting visual" />
+            <img src="/assets/hero.png" alt="BKR sports gaming visual" />
 
             <div className="floating-card">
               <div className="floating-card-top">

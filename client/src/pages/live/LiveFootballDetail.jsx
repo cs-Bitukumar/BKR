@@ -82,7 +82,7 @@ function LiveFootballDetail() {
           </div>
 
           <div className="bet-markets">
-            <h3>Bet Markets</h3>
+            <h3>Free prediction options</h3>
             <div className="markets-list">
               {marketGroups.map((m, idx) => (
                 <div className="market-group" key={m.title + idx}>

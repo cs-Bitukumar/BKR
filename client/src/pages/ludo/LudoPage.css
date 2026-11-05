@@ -97,4 +97,55 @@
 @keyframes ludo-yard-pulse{0%,100%{opacity:.5}50%{opacity:1}}
 .ludo-seat-note{color:var(--muted-2);font-size:.7rem}
 
+.ludo-dice{color:#fff;background:linear-gradient(145deg,color-mix(in srgb,var(--dice-color) 42%,white) 0%,var(--dice-color) 48%,color-mix(in srgb,var(--dice-color) 62%,black) 100%);box-shadow:inset 0 2px 3px rgba(255,255,255,.58),inset 0 -7px 12px rgba(0,0,0,.24),0 8px 18px color-mix(in srgb,var(--dice-color) 34%,transparent),0 0 0 3px color-mix(in srgb,var(--dice-color) 40%,transparent)}
+.ludo-dice::after{border-color:rgba(255,255,255,.58)}
+.ludo-dice-brand{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.55)}
+.ludo-dice-pips i.is-pip{background:#171a17;box-shadow:inset 1px 1px 2px rgba(255,255,255,.35),0 1px 1px rgba(0,0,0,.45)}
+.ludo-yard-dice .ludo-dice{box-shadow:inset 0 2px 3px rgba(255,255,255,.58),inset 0 -5px 10px rgba(0,0,0,.3),0 5px 13px color-mix(in srgb,var(--dice-color) 42%,transparent),0 0 0 3px color-mix(in srgb,var(--dice-color) 40%,transparent)}
+.ludo-turn-countdown{display:inline-flex;align-items:center;min-height:32px;padding:7px 11px;border:1px solid color-mix(in srgb,var(--player-color) 44%,transparent);border-radius:999px;color:var(--player-color);background:color-mix(in srgb,var(--player-color) 12%,transparent);font:700 .68rem 'Space Mono',monospace;white-space:nowrap}
+.ludo-turn-countdown.is-urgent{color:#fff;border-color:#e2535d;background:rgba(226,83,93,.22);animation:ludoTimerPulse .8s ease-in-out infinite alternate}
+@keyframes ludoTimerPulse{to{filter:brightness(1.4)}}
 
+
+
+.ludo-game-layout{grid-template-columns:minmax(0,1fr) auto;align-items:center}.ludo-game-top{min-width:0}.ludo-players-strip{max-width:100%}.ludo-board-wrap,.ludo-controls,.ludo-dice-box{grid-column:1/-1}
+.ludo-game-layout{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr)}.ludo-game-top{display:flex;align-items:center}.ludo-players-strip{min-width:0;max-width:100%;overflow-x:auto}.ludo-mini-player b{white-space:nowrap}.ludo-dice{width:62px;height:62px}.ludo-yard-dice .ludo-dice{width:25.5%;min-width:26px}.ludo-sound-toggle{display:inline-grid;place-items:center;width:38px;height:38px;border:1px solid rgba(255,255,255,.12);border-radius:11px;color:var(--text);background:rgba(255,255,255,.05)}.ludo-sound-toggle[aria-pressed="false"]{color:var(--muted-2)}.ludo-token.is-stepping{transition:none}
+.ludo-yard-dice .ludo-dice{padding:0}.ludo-yard-dice .ludo-dice::before{content:'';position:absolute;inset:-6px}
+@media(max-width:560px){.ludo-game-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.ludo-game-top{display:flex;align-items:center}.ludo-dice{width:50px;height:50px}.ludo-yard-dice .ludo-dice{width:25.5%;min-width:22px}}
+
+.ludo-game-mode-picker{align-content:start}
+.ludo-mode-options,.ludo-move-limit-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.ludo-mode-option{min-width:0;padding:9px 6px;border:1px solid rgba(255,255,255,.13);border-radius:9px;color:var(--text);background:rgba(255,255,255,.04);font-size:.67rem;font-weight:700;cursor:pointer}
+.ludo-mode-option:hover{border-color:rgba(57,255,20,.5)}
+.ludo-mode-option.is-active{border-color:var(--primary);color:#071500;background:var(--primary);box-shadow:0 0 14px rgba(57,255,20,.16)}
+.ludo-mode-value{margin-top:3px}
+.ludo-mode-note{color:var(--muted-2);font-size:.7rem}
+.ludo-mode-summary{display:inline-flex;align-items:center;gap:7px;margin:0 0 14px;color:var(--primary);font:700 .72rem 'Space Mono',monospace}
+.ludo-mode-summary .material-symbols-outlined{font-size:1rem}
+.ludo-mode-indicator{color:var(--primary)}
+@media(max-width:560px){.ludo-mode-options,.ludo-move-limit-options{gap:5px}.ludo-mode-option{padding:9px 4px;font-size:.63rem}}
+
+.ludo-home-score{position:absolute;z-index:2;display:flex;align-items:center;justify-content:center;gap:.28em;width:24%;min-height:1.8%;padding:.22em .4em;border:1px solid rgba(255,255,255,.58);border-radius:999px;color:#fff;background:rgba(20,29,22,.82);box-shadow:0 2px 6px rgba(0,0,0,.2);font:700 clamp(.36rem,1.1vw,.62rem)/1 'Space Mono',monospace;white-space:nowrap;pointer-events:none}
+.ludo-home-score span{color:rgba(255,255,255,.76);font-size:.78em;letter-spacing:.06em}
+.ludo-home-score strong{font-size:1.1em}
+
+@media(max-width:320px){
+  .ludo-page--playing{padding:10px 6px 24px}
+  .ludo-page--playing .ludo-topbar{gap:8px;padding:10px;border-radius:14px}
+  .ludo-page--playing .ludo-brand{gap:0}
+  .ludo-page--playing .ludo-brand h1,
+  .ludo-page--playing .ludo-brand p{display:none}
+  .ludo-page--playing .ludo-brand-mark{width:38px;height:38px;border-radius:11px;font-size:.9rem}
+  .ludo-page--playing .ludo-topbar-actions{gap:6px}
+  .ludo-page--playing .ludo-sound-toggle{width:34px;height:34px}
+  .ludo-page--playing .ludo-wallet-chip{gap:4px;padding:7px 8px;font-size:.62rem}
+  .ludo-page--playing .ludo-wallet-chip strong{font-size:.65rem}
+  .ludo-page--playing .ludo-topbar .ludo-back .material-symbols-outlined{font-size:1.1rem}
+  .ludo-page--playing .ludo-game-layout{grid-template-columns:minmax(0,1fr);gap:10px;padding:10px;border-radius:14px}
+  .ludo-page--playing .ludo-game-top{grid-column:1;display:grid;gap:8px;min-width:0}
+  .ludo-page--playing .ludo-game-meta{justify-content:flex-start;gap:6px}
+  .ludo-page--playing .ludo-stake-tag,
+  .ludo-page--playing .ludo-turn-countdown{min-height:28px;padding:5px 7px;font-size:.57rem}
+  .ludo-page--playing .ludo-players-strip{grid-column:1;gap:6px}
+  .ludo-page--playing .ludo-mini-player{gap:6px;padding:7px 8px;font-size:.63rem}
+}

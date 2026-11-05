@@ -7,7 +7,7 @@ function DashboardFooter() {
       <div className="footer-brand-block">
         <h3>BKR</h3>
         <p>
-          The premier sports betting simulation for players who value speed, precision,
+          A free-to-play gaming experience for players who value speed and precision,
           and absolute reliability in every bet.
         </p>
         <span className="footer-status">
@@ -24,9 +24,11 @@ function DashboardFooter() {
       </div>
 
       <div className="footer-legal">
-        <button type="button">Terms of Service</button>
-        <button type="button">Privacy Policy</button>
-        <button type="button">Responsible Gaming</button>
+        <Link to="/policies/terms">Terms & Conditions</Link>
+        <Link to="/policies/privacy">Privacy Policy</Link>
+        <Link to="/policies/refunds">Refunds</Link>
+        <Link to="/policies/responsible">Responsible Gaming</Link>
+        <Link to="/contact">Contact & Grievance</Link>
       </div>
     </footer>
   )

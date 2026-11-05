@@ -2,36 +2,22 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { get } from '../api/api'
 import { useAuth } from '../context/AuthContext'
-import { formatCurrency } from '../utils/wallet'
 import './HistoryPage.css'
 
 function HistoryPage() {
   const { token } = useAuth()
-  const [bets, setBets] = useState([])
+  const [predictions, setPredictions] = useState([])
   const [error, setError] = useState('')
-  const [filter, setFilter] = useState('all')
-
-  useEffect(() => {
-    get('/api/bets', token).then((data) => setBets(Array.isArray(data) ? data : [])).catch((err) => setError(err.message))
-  }, [token])
-
-  const visibleBets = bets.filter((bet) => filter === 'all' || (filter === 'live' ? bet.status === 'pending' : ['won', 'lost', 'cancelled'].includes(bet.status)))
-
-  return (
-    <main className="history-page">
-      <header className="history-topbar glass"><div className="history-topbar-inner"><Link className="history-back" to="/dashboard" aria-label="Back to dashboard">←</Link><div><span className="history-kicker">BKR activity center</span><h1>Bet History</h1></div><Link className="history-wallet-link" to="/wallet">Wallet</Link></div></header>
-      <div className="history-shell">
-        <section className="history-hero glass"><div><span className="history-kicker">Everything in one place</span><h2>Live & settled bets</h2><p>Track every confirmed selection, active live bet, stake, odds, and settlement result.</p></div><div className="history-counts"><strong>{bets.length}</strong><span>Total bets</span><strong>{bets.filter((bet) => bet.status === 'pending').length}</strong><span>Live now</span></div></section>
-        <section className="history-card glass">
-          <div className="history-toolbar"><div><h3>Activity</h3><p>{error || 'Your latest betting activity'}</p></div><div className="history-filters" role="tablist" aria-label="Bet history filters">{['all', 'live', 'settled'].map((item) => <button key={item} type="button" className={filter === item ? 'is-active' : ''} onClick={() => setFilter(item)}>{item === 'all' ? 'All bets' : item === 'live' ? 'Live bets' : 'Settled'}</button>)}</div></div>
-          <div className="history-list">
-            {visibleBets.map((bet) => { const live = bet.status === 'pending'; return <article className={`history-row ${live ? 'is-live' : ''}`} key={bet._id}><div className="history-row-main"><span className="history-sport-icon material-symbols-outlined">{live ? 'sensors' : 'receipt_long'}</span><div><h4>{bet.match}</h4><p>{bet.selection} · {bet.placedAt ? new Date(bet.placedAt).toLocaleString('en-IN') : 'Recently placed'}</p></div></div><div className="history-value"><span>Odds</span><strong>{Number(bet.odds).toFixed(2)}x</strong></div><div className="history-value"><span>Stake</span><strong>{formatCurrency(bet.amount)}</strong></div><span className={`history-status is-${bet.status}`}>{live ? 'LIVE' : String(bet.status).toUpperCase()}</span></article> })}
-            {!visibleBets.length ? <div className="history-empty"><span className="material-symbols-outlined">history</span><h3>No bets in this view</h3><p>Confirmed bets will appear here automatically.</p><Link to="/live-markets">Explore live markets</Link></div> : null}
-          </div>
-        </section>
-      </div>
-    </main>
-  )
+  useEffect(() => { get('/api/bets', token).then((data) => setPredictions(Array.isArray(data) ? data : [])).catch((err) => setError(err.message)) }, [token])
+  return <main className="history-page">
+    <header className="history-topbar glass"><div className="history-topbar-inner"><Link className="history-back" to="/dashboard" aria-label="Back to dashboard">←</Link><div><span className="history-kicker">BKR activity center</span><h1>Prediction History</h1></div><Link className="history-wallet-link" to="/wallet">Virtual coins</Link></div></header>
+    <div className="history-shell">
+      <section className="history-hero glass"><div><span className="history-kicker">Everything in one place</span><h2>Free predictions</h2><p>Review saved picks. Predictions do not use coins and have no prizes.</p></div><div className="history-counts"><strong>{predictions.length}</strong><span>Total picks</span><strong>0</strong><span>Prizes</span></div></section>
+      <section className="history-card glass"><div className="history-toolbar"><div><h3>Activity</h3><p>{error || 'Saved entertainment predictions'}</p></div></div><div className="history-list">
+        {predictions.map((pick) => <article className="history-row" key={pick._id}><div className="history-row-main"><span className="history-sport-icon material-symbols-outlined">sports</span><div><h4>{pick.match}</h4><p>{pick.selection} · {pick.placedAt ? new Date(pick.placedAt).toLocaleString('en-IN') : 'Recently saved'}</p></div></div><div className="history-value"><span>Odds</span><strong>{Number(pick.odds).toFixed(2)}x</strong></div><div className="history-value"><span>Cost</span><strong>Free</strong></div><span className="history-status">SAVED</span></article>)}
+        {!predictions.length && <div className="history-empty"><span className="material-symbols-outlined">history</span><h3>No predictions yet</h3><p>Saved free picks will appear here.</p><Link to="/live-markets">Explore match data</Link></div>}
+      </div></section>
+    </div>
+  </main>
 }
-
 export default HistoryPage

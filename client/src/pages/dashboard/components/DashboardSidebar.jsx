@@ -2,7 +2,7 @@ import './DashboardSidebar.css'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../context/AuthContext'
 import { dashboardNavigation, quickActions, sidebarStats } from '../dashboardData'
-import { formatCurrency, readWalletState } from '../../../utils/wallet'
+import { formatCoins, readWalletState } from '../../../utils/wallet'
 
 function DashboardSidebar() {
   const { user } = useAuth()
@@ -12,8 +12,8 @@ function DashboardSidebar() {
     <aside className="dashboard-sidebar glass">
       <section className="sidebar-wallet">
         <span className="sidebar-kicker">Account overview</span>
-        <strong>{formatCurrency(walletState.balance)}</strong>
-        <p>Available bankroll updated just now</p>
+        <strong>{formatCoins(walletState.virtualCoins)}</strong>
+        <p>Virtual coins for eligible in-game use</p>
 
         <div className="sidebar-wallet-metrics">
           {sidebarStats.map((item) => (
@@ -62,8 +62,8 @@ function DashboardSidebar() {
 
       <section className="sidebar-support">
         <div className="sidebar-support-badge">24/7 Desk</div>
-        <h3>Need a trading assist?</h3>
-        <p>Support is on standby for line questions, cash-out issues, and stake adjustments.</p>
+        <h3>Need help?</h3>
+        <p>Contact support for account or gameplay questions.</p>
       </section>
 
       <div className="sidebar-footer-links">

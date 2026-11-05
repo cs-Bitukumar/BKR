@@ -8,7 +8,6 @@ const userSchema = new mongoose.Schema({
 	profileImage: { type: String, trim: true, default: '' },
 	password: { type: String, required: true, minlength: 8 },
 	role: { type: String, enum: ['user', 'admin'], default: 'user' },
-	balance: { type: Number, default: 0 },
 	createdAt: { type: Date, default: Date.now },
 });
 

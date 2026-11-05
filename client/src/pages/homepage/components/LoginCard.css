@@ -11,6 +11,17 @@
     0 24px 60px rgba(0, 0, 0, 0.48);
 }
 
+.recovery-link {
+  padding: 0;
+  border: 0;
+  color: var(--primary);
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .login-card-accent {
   position: absolute;
   inset: 0 auto auto 0;

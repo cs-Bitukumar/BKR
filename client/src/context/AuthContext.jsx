@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useEffect, useContext, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { get } from '../api/api'
+import { get, post } from '../api/api'
 
 const AuthContext = createContext(null)
 const AUTH_STORAGE_KEY = 'bkr_auth'
@@ -15,7 +15,7 @@ function normalizeUser(userData) {
     username: userData.username ?? '',
     email: userData.email ?? '',
     role: userData.role ?? 'user',
-    balance: userData.balance ?? 0,
+    virtualCoins: userData.virtualCoins ?? 0,
     phone: userData.phone ?? '',
     profileImage: userData.profileImage ?? '',
     createdAt: userData.createdAt ?? null,
@@ -85,12 +85,20 @@ export function AuthProvider({ children }) {
 
   const refreshUser = useCallback((userData) => {
     if (!token) return
-    const nextSession = { token, user: normalizeUser(userData) }
+    const storedUser = readStoredAuth().user
+    const nextSession = { token, user: normalizeUser({ ...storedUser, ...userData }) }
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession))
     setSession(nextSession)
   }, [token])
 
-  function logout() {
+  async function logout() {
+    if (token) {
+      try {
+        await post('/api/auth/logout', {}, token)
+      } catch {
+        // A revoked/expired token has no server session left to release.
+      }
+    }
     localStorage.removeItem(AUTH_STORAGE_KEY)
     localStorage.removeItem(LEGACY_AUTH_STORAGE_KEY)
     setSession({ token: null, user: null })

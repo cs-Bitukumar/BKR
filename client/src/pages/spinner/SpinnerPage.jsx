@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { io } from 'socket.io-client'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { API_BASE_URL } from '../../api/api'
-import { formatCurrency, syncWalletBalance } from '../../utils/wallet'
+import { formatCoins } from '../../utils/wallet'
 import { useAuth } from '../../context/AuthContext'
 import DashboardTopBar from '../dashboard/components/DashboardTopBar'
 import DashboardBottomNav from '../dashboard/components/DashboardBottomNav'
@@ -13,8 +13,6 @@ import { scoreboardRows } from './components/spinnerGeometry'
 
 const SOCKET_URL = API_BASE_URL
 const LEGACY_ROOM_STORAGE_KEY = 'bkr_spinner_room'
-// Wallet bet options offered in the lobby. The server validates the same list.
-const STAKE_CHOICES = [1, 5, 10, 20, 100].map((value) => ({ value, label: `₹${value.toLocaleString('en-IN')}` }))
 // Kept in sync with the .spinner-wheel transition in SpinnerPage.css.
 const SPIN_DURATION_MS = 4200
 
@@ -22,14 +20,8 @@ function getRoomStorageKey(userId) {
   return `bkr_spinner_room_${String(userId || 'anonymous')}`
 }
 
-function formatStake(amount) {
-  const value = Number(amount)
-  if (!Number.isFinite(value) || value <= 0) return 'Free play'
-  return `₹${value.toLocaleString('en-IN')}`
-}
-
 function SpinnerPage() {
-  const { user, token, refreshUser } = useAuth()
+  const { user, token } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const socketRef = useRef(null)
@@ -39,7 +31,6 @@ function SpinnerPage() {
   const [joinCode, setJoinCode] = useState('')
   const [maxPlayers, setMaxPlayers] = useState(2)
   const [rounds, setRounds] = useState(5)
-  const [stake, setStake] = useState(0)
   const [rotation, setRotation] = useState(0)
   const [spinDuration, setSpinDuration] = useState(0)
   const [isSpinning, setIsSpinning] = useState(false)
@@ -49,11 +40,6 @@ function SpinnerPage() {
   const [connection, setConnection] = useState('connecting')
   const spinTimerRef = useRef(null)
   const lastGameStatusRef = useRef(null)
-  const userRef = useRef(user)
-
-  // The socket session must survive balance updates, so the newest user object
-  // is mirrored in a ref instead of being added to the connection effect.
-  useEffect(() => { userRef.current = user }, [user])
   const isSpinningRef = useRef(false)
   useEffect(() => { isSpinningRef.current = isSpinning }, [isSpinning])
 
@@ -116,20 +102,6 @@ function SpinnerPage() {
     socket.on('gameStarted', updateGame)
     socket.on('wheelSpun', animateSpin)
     socket.on('gameFinished', updateGame)
-    // The wallet balance is server authoritative: stakes, refunds and payouts
-    // arrive here and are pushed into the shared auth session straight away.
-    socket.on('walletUpdated', (payload) => {
-      const nextBalance = Number(payload?.balance)
-      if (!Number.isFinite(nextBalance)) return
-      const currentUser = userRef.current
-      if (!currentUser) return
-      const previousBalance = Number(currentUser.balance) || 0
-      syncWalletBalance(currentUser, nextBalance)
-      refreshUser({ ...currentUser, balance: nextBalance })
-      const change = nextBalance - previousBalance
-      if (change > 0) setNotice(`${formatCurrency(change)} added to your wallet.`)
-      else if (change < 0) setNotice(`${formatCurrency(Math.abs(change))} debited from your wallet.`)
-    })
     sessionStorage.removeItem(LEGACY_ROOM_STORAGE_KEY)
     return () => {
       socket.removeAllListeners()
@@ -137,7 +109,7 @@ function SpinnerPage() {
       socketRef.current = null
       window.clearTimeout(spinTimerRef.current)
     }
-  }, [animateSpin, refreshUser, roomStorageKey, token, updateGame, user.id])
+  }, [animateSpin, roomStorageKey, token, updateGame, user.id])
 
   function emitAction(event, payload, callback) {
     setError('')
@@ -159,13 +131,13 @@ function SpinnerPage() {
   function createRoom() {
     sessionStorage.removeItem(roomStorageKey)
     setRoomCode('')
-    emitAction('createRoom', { maxPlayers, rounds, stake }, handleRoom)
+    emitAction('createRoom', { maxPlayers, rounds }, handleRoom)
   }
 
   function createSinglePlayerRoom() {
     sessionStorage.removeItem(roomStorageKey)
     setRoomCode('')
-    emitAction('createRoom', { singlePlayer: true, maxPlayers, rounds, stake }, handleRoom)
+    emitAction('createRoom', { singlePlayer: true, maxPlayers, rounds }, handleRoom)
   }
 
   function joinRoom() {
@@ -210,8 +182,8 @@ function SpinnerPage() {
   const isHost = Boolean(ownPlayer && game?.players?.[0]?.userId === ownPlayer.userId)
   const isOwnTurn = Boolean(ownPlayer && currentPlayer && String(currentPlayer.userId) === String(ownPlayer.userId))
   const canStartGame = Boolean(isHost && game?.status === 'waiting' && game.players.length === game.maxPlayers)
-  const balance = Number(user?.balance) || 0
-  const balanceLabel = formatCurrency(balance)
+  const balance = Number(user?.virtualCoins) || 0
+  const balanceLabel = formatCoins(balance)
   // The scoreboard mirrors the wheel: seat order, pointer angle and colour.
   const scoreboard = useMemo(() => scoreboardRows(game?.players || []), [game?.players])
   const pointerCount = game?.players?.length || 0
@@ -238,7 +210,7 @@ function SpinnerPage() {
         {connection !== 'connected' && !game && <div className="spinner-notice">{connection === 'connecting' ? 'Connecting to multiplayer...' : 'Multiplayer connection unavailable.'}</div>}
 
         {!game && <>
-          <SpinnerLobby joinCode={joinCode} maxPlayers={maxPlayers} rounds={rounds} stake={stake} stakeChoices={STAKE_CHOICES} balance={balance} balanceLabel={balanceLabel} onJoinCodeChange={setJoinCode} onMaxPlayersChange={setMaxPlayers} onRoundsChange={setRounds} onStakeChange={setStake} onCreate={createRoom} onCreateSinglePlayer={createSinglePlayerRoom} onJoin={joinRoom} disabled={connection !== 'connected'} />
+          <SpinnerLobby joinCode={joinCode} maxPlayers={maxPlayers} rounds={rounds} balanceLabel={balanceLabel} onJoinCodeChange={setJoinCode} onMaxPlayersChange={setMaxPlayers} onRoundsChange={setRounds} onCreate={createRoom} onCreateSinglePlayer={createSinglePlayerRoom} onJoin={joinRoom} disabled={connection !== 'connected'} />
           <aside className="spinner-card spinner-side-card">
             <h3>How this room works</h3>
             <ul className="spinner-rule-list">
@@ -248,7 +220,6 @@ function SpinnerPage() {
               <li>Only the player on turn can spin the wheel.</li>
               <li>Your slice always stops under your own pointer.</li>
               <li>Everyone takes the same number of turns, then the highest score wins.</li>
-              <li>Stakes come from your BKR wallet and the winner takes the whole pot.</li>
               <li>Solo rooms fill the open seats with BKR Bot, which spins automatically.</li>
               <li>If everyone else leaves, the last player wins by walkover.</li>
             </ul>
@@ -262,8 +233,7 @@ function SpinnerPage() {
               <div className="spinner-room-code">{roomCode}<button className="spinner-copy-btn" type="button" onClick={copyRoomCode} aria-label="Copy room code"><span className="material-symbols-outlined">content_copy</span></button></div>
             </div>
             <div className="spinner-room-meta">
-              <span className={`spinner-stake-tag${game.stake > 0 ? ' is-live' : ''}`}><span className="material-symbols-outlined">payments</span>{game.stake > 0 ? `${formatStake(game.stake)} per player` : 'Free play'}</span>
-              {game.pot > 0 && <span className="spinner-stake-tag"><span className="material-symbols-outlined">emoji_events</span>Pot {formatStake(game.pot)}</span>}
+              <span className="spinner-stake-tag is-muted"><span className="material-symbols-outlined">token</span>Free play · no entry fee or prize</span>
               <span className="spinner-stake-tag is-muted"><span className="material-symbols-outlined">casino</span>{game.rounds} spins each</span>
             </div>
           </div>
@@ -297,9 +267,9 @@ function SpinnerPage() {
           <div className="spinner-card spinner-stage">
             <div className="spinner-heading">
               <div>
-                <span className="spinner-kicker">{game.stake > 0 ? `${formatStake(game.stake)} stake room` : 'Free play room'}</span>
+                <span className="spinner-kicker">Free play room</span>
                 <h2>{isOwnTurn ? 'Your turn to spin' : `${currentPlayer?.username} is spinning`}</h2>
-                <p>Turn {game.turnNumber} · {pointerCount} pointer{pointerCount === 1 ? '' : 's'} on the wheel{game.pot > 0 ? ` · pot ${formatStake(game.pot)}` : ''}</p>
+                <p>Turn {game.turnNumber} · {pointerCount} pointer{pointerCount === 1 ? '' : 's'} on the wheel</p>
               </div>
               <div className="spinner-score"><span>Your score</span><strong>{ownPlayer?.score || 0}</strong><small>{spinsLeft} spin{spinsLeft === 1 ? '' : 's'} left</small></div>
             </div>

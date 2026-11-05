@@ -1,21 +1,22 @@
 import User from '../models/userModel.js';
-import jwt from 'jsonwebtoken';
+import { createSession, endSession } from '../auth/session.js';
+import { getVirtualCoinBalance } from '../services/walletService.js';
 import '../config/env.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
 const gmailRe = /^[^\s@]+@gmail\.com$/i;
+const SESSION_CONFLICT = 'This account is already logged in on another device. Please log out from that device before logging in here.';
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
-function buildPublicUser(user) {
+function buildPublicUser(user, virtualCoins = 0) {
   return {
     id: user._id,
     email: user.email,
     username: user.username,
     role: user.role,
-    balance: user.balance,
+    virtualCoins,
     phone: user.phone || '',
     profileImage: user.profileImage || '',
     createdAt: user.createdAt,
@@ -40,7 +41,8 @@ export async function register(req, res) {
 
     const user = new User({ username, email, password, phone });
     await user.save();
-    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+    const token = await createSession(user._id);
+    if (!token) return res.status(409).json({ message: SESSION_CONFLICT });
     res.status(201).json({ token, user: buildPublicUser(user) });
   } catch (err) {
     console.error(err);
@@ -62,8 +64,19 @@ export async function login(req, res) {
     const ok = await user.comparePassword(password);
     if (!ok) return res.status(400).json({ message: 'Invalid credentials' });
 
-    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: buildPublicUser(user) });
+    const token = await createSession(user._id);
+    if (!token) return res.status(409).json({ message: SESSION_CONFLICT });
+    res.json({ token, user: buildPublicUser(user, await getVirtualCoinBalance(user._id)) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
+export async function logout(req, res) {
+  try {
+    await endSession(req.user.id, req.authToken);
+    res.json({ message: 'Logged out' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -72,11 +85,11 @@ export async function login(req, res) {
 
 export async function me(req, res) {
   try {
-    const user = await User.findById(req.user.id).select('username email role balance phone profileImage createdAt');
+    const user = await User.findById(req.user.id).select('username email role phone profileImage createdAt');
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     res.json({
-      user: buildPublicUser(user),
+      user: buildPublicUser(user, await getVirtualCoinBalance(user._id)),
     });
   } catch (err) {
     console.error(err);

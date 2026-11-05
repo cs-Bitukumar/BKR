@@ -11,7 +11,6 @@ export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 4;
 export const BOT_USER_ID = 'spinner-bot';
 export const BOT_USERNAME = 'BKR Bot';
-export const STAKE_OPTIONS = [1, 5, 10, 20, 100];
 export const DEFAULT_STAKE = 0;
 export const DEFAULT_ROUNDS = 5;
 export const MIN_ROUNDS = 1;
@@ -35,13 +34,9 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-// A stake of 0 keeps free play. Any positive amount has to match one of the
-// wallet bet options offered by the client.
+// Stake parameters from old clients are ignored; rooms are always free.
 export function normalizeStake(value) {
-  const stake = Number(value);
-  if (!Number.isFinite(stake) || stake <= 0) return DEFAULT_STAKE;
-  if (!STAKE_OPTIONS.includes(stake)) throw new Error('Choose a valid stake amount');
-  return stake;
+  return 0;
 }
 
 export function normalizeRounds(value) {
@@ -50,12 +45,8 @@ export function normalizeRounds(value) {
   return Math.min(MAX_ROUNDS, Math.floor(rounds));
 }
 
-// Every seat contributes one stake to the pot. Bot seats are funded by the
-// house so a solo win still pays out a full pot.
 export function calculateSpinnerPot(game) {
-  const stake = Number(game?.stake) || 0;
-  if (stake <= 0) return 0;
-  return stake * (Array.isArray(game?.players) ? game.players.length : 0);
+  return 0;
 }
 
 export function createSpinnerGame(roomId, maxPlayers = MAX_PLAYERS, rounds = DEFAULT_ROUNDS, stake = DEFAULT_STAKE) {
@@ -63,7 +54,7 @@ export function createSpinnerGame(roomId, maxPlayers = MAX_PLAYERS, rounds = DEF
     roomId,
     maxPlayers: Math.min(MAX_PLAYERS, Math.max(MIN_PLAYERS, Number(maxPlayers) || MAX_PLAYERS)),
     rounds: normalizeRounds(rounds),
-    stake: normalizeStake(stake),
+    stake: 0,
     status: 'waiting',
     players: [],
     currentPlayer: 0,
