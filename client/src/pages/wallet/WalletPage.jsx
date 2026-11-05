@@ -1,157 +1,90 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { get } from '../../api/api'
+import { get, post } from '../../api/api'
+import { formatCoins } from '../../utils/wallet'
 import './WalletPage.css'
-import { walletQuickMethods, formatCurrency, getWalletTransactions, readWalletState } from '../../utils/wallet'
 
 function WalletPage() {
-  const { user } = useAuth()
-  const [wallet, setWallet] = useState(() => readWalletState(user))
-  const { token, refreshUser } = useAuth()
+  const { user, token, refreshUser } = useAuth()
+  const [wallet, setWallet] = useState({ virtualCoins: Number(user?.virtualCoins) || 0, transactions: [], dailyReward: null })
+  const [status, setStatus] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [claiming, setClaiming] = useState(false)
 
   useEffect(() => {
     let active = true
     get('/api/wallet', token).then((data) => {
       if (!active) return
-      setWallet({
-        ...data,
-        transactions: (data.transactions || []).map((transaction) => ({
-          ...transaction,
-          amount: `${Number(transaction.amount) >= 0 ? '+' : '-'}${formatCurrency(Math.abs(Number(transaction.amount)))}`,
-          status: String(transaction.status || '').toUpperCase(),
-          tone: Number(transaction.amount) >= 0 ? 'positive' : 'pending',
-        })),
-      })
-      if (data.user) refreshUser(data.user)
-    }).catch(() => {})
+      setWallet(data)
+      refreshUser({ virtualCoins: data.virtualCoins })
+    }).catch((error) => active && setStatus(error.message || 'Unable to load virtual coins.'))
+      .finally(() => active && setLoading(false))
     return () => { active = false }
-  }, [token, refreshUser])
+  }, [refreshUser, token])
 
-  const walletState = wallet
-  const visibleBalance = walletState.balance
+  async function claimDailyBonus() {
+    if (claiming || wallet.dailyReward?.claimedToday) return
+    setStatus('')
+    setClaiming(true)
+    try {
+      const result = await post('/api/wallet/rewards/daily', {}, token)
+      setWallet((current) => ({
+        ...current,
+        virtualCoins: result.virtualCoins,
+        dailyReward: result.dailyReward,
+        transactions: result.duplicate ? current.transactions : [result.transaction, ...current.transactions],
+      }))
+      refreshUser({ virtualCoins: result.virtualCoins })
+      setStatus(result.duplicate
+        ? 'Your daily reward has already been claimed today.'
+        : `Day ${result.transaction.rewardDay} reward claimed: +${result.dailyBonusCoins} free coins. Wallet balance: ${formatCoins(result.virtualCoins)}.`)
+    } catch (error) {
+      setStatus(error.message || 'Unable to claim your daily reward.')
+    } finally {
+      setClaiming(false)
+    }
+  }
 
-  const walletStats = [
-    { label: 'Monthly deposits', value: formatCurrency(walletState.monthlyDeposits) },
-    { label: 'Monthly winnings', value: formatCurrency(walletState.monthlyWinnings) },
-  ]
-
-  const balanceLabel = formatCurrency(visibleBalance)
-  const recentTransactions = walletState.transactions || getWalletTransactions(user)
+  const dailyReward = wallet.dailyReward
 
   return (
     <main className="wallet-page">
-      <header className="wallet-topbar glass">
-        <div className="wallet-topbar-inner">
-          <div className="wallet-topbar-brand">
-            <Link className="wallet-back-btn" to="/dashboard" aria-label="Back to dashboard">
-              <span className="material-symbols-outlined">arrow_back</span>
-            </Link>
-
-            <div className="wallet-brand-copy">
-              <span className="material-symbols-outlined wallet-brand-icon">account_balance_wallet</span>
-              <div>
-                <h1>BKR WALLET</h1>
-                <p>Premium betting simulation</p>
-              </div>
-            </div>
-          </div>
-
-          <button className="wallet-notification-btn" type="button" aria-label="Notifications">
-            <span className="material-symbols-outlined">notifications</span>
-          </button>
-        </div>
-      </header>
-
+      <header className="wallet-topbar glass"><div className="wallet-topbar-inner"><div className="wallet-topbar-brand"><Link className="wallet-back-btn" to="/dashboard" aria-label="Back to dashboard"><span className="material-symbols-outlined">arrow_back</span></Link><div className="wallet-brand-copy"><span className="material-symbols-outlined wallet-brand-icon">token</span><div><h1>VIRTUAL COINS</h1><p>Free gameplay credits</p></div></div></div></div></header>
       <div className="wallet-shell">
-        <div className='available-balance'>{balanceLabel}</div>
-
-        <section className="wallet-stats-grid">
-          {walletStats.map((stat) => (
-            <article className="wallet-stat-card glass" key={stat.label}>
-              <p>{stat.label}</p>
-              <strong>{stat.value}</strong>
-            </article>
-          ))}
-        </section>
-
-        <section className="wallet-actions-section">
-          <Link className="wallet-primary-action" to="/wallet/deposit">
-            <span className="material-symbols-outlined">add_circle</span>
-            Deposit Funds
-          </Link>
-          <Link className="wallet-secondary-action" to="/wallet/withdraw">
-            <span className="material-symbols-outlined">outbound</span>
-            Withdrawal
-          </Link>
-        </section>
-
-        <section className="wallet-quick-deposit">
-          <div className="wallet-section-header">
-            <h3>Quick Deposit</h3>
-            <span>Fast methods ready</span>
+        <section className="virtual-wallet-card glass"><span>Available virtual coins</span><strong>{loading ? 'Loading…' : formatCoins(wallet.virtualCoins)}</strong><p>Coins have no monetary value. They cannot be bought, sold, transferred, redeemed, or withdrawn.</p></section>
+        <section className="wallet-daily-reward glass" aria-labelledby="daily-reward-title">
+          <div className="wallet-daily-reward-heading">
+            <div><span className="wallet-reward-kicker">Daily login bonus</span><h2 id="daily-reward-title">Keep your streak alive</h2><p>Collect free virtual coins once per Indian calendar day.</p></div>
+            <span className="material-symbols-outlined wallet-reward-icon" aria-hidden="true">redeem</span>
           </div>
-
-          <div className="wallet-methods-row">
-            {walletQuickMethods.map((method) => (
-              <div className="wallet-method-card glass" key={method.label}>
-                <span className="material-symbols-outlined">{method.icon}</span>
-                <strong>{method.label}</strong>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="wallet-transactions-section">
-          <div className="wallet-section-header">
-            <h3>Recent Transactions</h3>
-            <button type="button">View All</button>
-          </div>
-
-          <div className="wallet-transaction-list">
-            {recentTransactions.map((transaction) => (
-              <article
-                className={`wallet-transaction-card glass is-${transaction.tone}`}
-                key={transaction.id || `${transaction.title}-${transaction.date}`}
-              >
-                <div className="wallet-transaction-left">
-                  <div className="wallet-transaction-icon">
-                    <span className="material-symbols-outlined">{transaction.icon}</span>
-                  </div>
-                  <div>
-                    <h4>{transaction.title}</h4>
-                    <p>{transaction.date}</p>
-                  </div>
+          {dailyReward ? <>
+            <div className="wallet-reward-stats">
+              <div><span>Today's reward</span><strong>{formatCoins(dailyReward.todayRewardCoins)} <small>coins</small></strong><em>Day {dailyReward.rewardDay}</em></div>
+              <div><span>Current streak</span><strong>{dailyReward.currentStreak}<small> {dailyReward.currentStreak === 1 ? 'day' : 'days'}</small></strong><em>{dailyReward.claimedToday ? 'Claimed today' : 'Consecutive days claimed'}</em></div>
+              <div><span>Next reward</span><strong>{formatCoins(dailyReward.nextRewardCoins)} <small>coins</small></strong><em>Day {dailyReward.nextRewardDay}</em></div>
+            </div>
+            <div className="wallet-reward-days" aria-label="Seven-day daily reward schedule">
+              {dailyReward.schedule.map(({ day, coins }) => {
+                const isClaimed = dailyReward.claimedDays.includes(day)
+                const isCurrent = dailyReward.rewardDay === day
+                return <div className={`wallet-reward-day${isClaimed ? ' is-claimed' : ''}${isCurrent ? ' is-current' : ''}`} key={day} aria-current={isCurrent ? 'step' : undefined}>
+                  <span>Day {day}</span><strong>{formatCoins(coins)}</strong><small>{isClaimed ? 'Claimed' : isCurrent ? 'Today' : 'Upcoming'}</small>
+                  {isClaimed && <span className="material-symbols-outlined wallet-reward-check" aria-label="Claimed">check_circle</span>}
                 </div>
-
-                <div className="wallet-transaction-right">
-                  <strong>{transaction.amount}</strong>
-                  <span>{transaction.status}</span>
-                </div>
-              </article>
-            ))}
-          </div>
+              })}
+            </div>
+            <button className="wallet-primary-action wallet-claim-reward" type="button" onClick={claimDailyBonus} disabled={loading || claiming || dailyReward.claimedToday}>
+              <span className="material-symbols-outlined" aria-hidden="true">{dailyReward.claimedToday ? 'check_circle' : 'redeem'}</span>
+              {claiming ? 'Claiming…' : dailyReward.claimedToday ? 'Claimed today' : `Claim ${formatCoins(dailyReward.todayRewardCoins)} free coins`}
+            </button>
+            <p className="wallet-reward-note">Virtual coins only. Not purchasable, transferable, redeemable, or withdrawable.</p>
+          </> : <p className="wallet-reward-loading">{loading ? 'Loading your reward schedule…' : 'Reward schedule is unavailable.'}</p>}
         </section>
+        {status && <p className="wallet-feedback" role="status">{status}</p>}
+        <section className="wallet-transactions-section"><div className="wallet-section-header"><h3>Virtual coin history</h3></div><div className="wallet-transaction-list">{wallet.transactions.length ? wallet.transactions.map((tx) => <article className="wallet-transaction-card glass" key={tx.transactionId}><div className="wallet-transaction-left"><div className="wallet-transaction-icon"><span className="material-symbols-outlined">{tx.type === 'daily_bonus' || tx.type === 'reward' ? 'redeem' : 'sports_esports'}</span></div><div><h4>{tx.description}</h4><p>{new Date(tx.createdAt).toLocaleString('en-IN')} · {tx.transactionId}</p></div></div><div className="wallet-transaction-right"><strong>{tx.amount > 0 ? '+' : ''}{formatCoins(tx.amount)}</strong><span>{formatCoins(tx.virtualCoinsBefore)} → {formatCoins(tx.virtualCoinsAfter)}</span></div></article>) : <p className="virtual-wallet-empty">No coin transactions yet. Daily bonuses and eligible in-game activity will appear here.</p>}</div></section>
       </div>
-
-      <nav className="wallet-bottom-nav glass" aria-label="Wallet navigation">
-        <Link className="wallet-bottom-nav-item" to="/dashboard">
-          <span className="material-symbols-outlined">sports_esports</span>
-          <span>Lobby</span>
-        </Link>
-        <Link className="wallet-bottom-nav-item" to="/live-markets">
-          <span className="material-symbols-outlined">sensors</span>
-          <span>Live</span>
-        </Link>
-        <Link className="wallet-bottom-nav-item is-active" to="/wallet" aria-current="page">
-          <span className="material-symbols-outlined">account_balance_wallet</span>
-          <span>Wallet</span>
-        </Link>
-        <Link className="wallet-bottom-nav-item" to="/profile">
-          <span className="material-symbols-outlined">person</span>
-          <span>Profile</span>
-        </Link>
-      </nav>
+      <nav className="wallet-bottom-nav glass" aria-label="Wallet navigation"><Link className="wallet-bottom-nav-item" to="/dashboard"><span className="material-symbols-outlined">sports_esports</span><span>Lobby</span></Link><Link className="wallet-bottom-nav-item" to="/live-cricket"><span className="material-symbols-outlined">sports_cricket</span><span>Live</span></Link><Link className="wallet-bottom-nav-item is-active" to="/wallet" aria-current="page"><span className="material-symbols-outlined">token</span><span>Coins</span></Link><Link className="wallet-bottom-nav-item" to="/profile"><span className="material-symbols-outlined">person</span><span>Profile</span></Link></nav>
     </main>
   )
 }

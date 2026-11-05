@@ -10,7 +10,7 @@ function LiveMatchesPanel() {
       <div className="panel-header">
         <div>
           <h2>Live Markets</h2>
-          <p>Momentum snapshots and betting lines that are moving right now.</p>
+          <p>Live score updates and free prediction options.</p>
         </div>
         <div className="panel-header-meta">
           <span className="panel-live-count">

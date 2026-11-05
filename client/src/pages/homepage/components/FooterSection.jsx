@@ -1,4 +1,5 @@
 import './FooterSection.css'
+import { Link } from 'react-router-dom'
 
 function FooterSection() {
   return (
@@ -9,7 +10,7 @@ function FooterSection() {
             <h4>BKR</h4>
             <p>
               Fast, premium, and built around live momentum. Designed to feel like a
-              serious sports desk, not a generic betting site.
+              a free-to-play gaming experience with non-monetary virtual coins.
             </p>
           </div>
 
@@ -25,9 +26,11 @@ function FooterSection() {
           <div>
             <h4>Legal</h4>
             <ul>
-              <li>Terms of Service</li>
-              <li>Responsible Play</li>
-              <li>Privacy Policy</li>
+              <li><Link to="/policies/terms">Terms & Conditions</Link></li>
+              <li><Link to="/policies/responsible">Responsible Gaming</Link></li>
+              <li><Link to="/policies/privacy">Privacy Policy</Link></li>
+              <li><Link to="/policies/refunds">Refund & Cancellation</Link></li>
+              <li><Link to="/contact">Contact & Grievance</Link></li>
             </ul>
           </div>
         </div>

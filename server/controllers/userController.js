@@ -1,10 +1,11 @@
 import User from '../models/userModel.js';
+import { getVirtualCoinBalance } from '../services/walletService.js';
 
 export async function getProfile(req, res) {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(req.user.id).select('-password -balance');
     if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user);
+    res.json({ ...user.toObject(), virtualCoins: await getVirtualCoinBalance(user._id) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -50,8 +51,8 @@ export async function updateProfile(req, res) {
       new: true,
       runValidators: true,
       context: 'query',
-    }).select('-password');
-    res.json(user);
+    }).select('-password -balance');
+    res.json({ ...user.toObject(), virtualCoins: await getVirtualCoinBalance(user._id) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

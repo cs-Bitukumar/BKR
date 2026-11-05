@@ -13,7 +13,7 @@ function AdminSidebar() {
       <section className="admin-sidebar-status">
         <span className="admin-sidebar-kicker">Control status</span>
         <strong>All systems visible</strong>
-        <p>Monitoring player risk, payments, and live operations in real time.</p>
+        <p>Monitoring account safety and live operations in real time.</p>
 
         <div className="admin-sidebar-metrics">
           {adminStats.map((item) => (

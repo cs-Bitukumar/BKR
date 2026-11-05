@@ -1,10 +1,9 @@
 import express from 'express';
-import { deposit, getWallet, withdraw } from '../controllers/walletController.js';
+import { claimDailyBonus, getWalletController } from '../controllers/walletController.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 router.use(requireAuth);
-router.get('/', getWallet);
-router.post('/deposit', deposit);
-router.post('/withdraw', withdraw);
+router.get('/', getWalletController);
+router.post('/rewards/daily', claimDailyBonus);
 export default router;

@@ -70,8 +70,8 @@ for (const playerCount of [2, 3, 4]) {
 }
 
 assert.equal(normalizeStake(0), 0);
-assert.equal(normalizeStake('10'), 10);
-assert.throws(() => normalizeStake(7), /valid stake amount/);
+assert.equal(normalizeStake('10'), 0, 'stake requests are ignored for free play');
+assert.equal(normalizeStake(7), 0);
 assert.equal(normalizeStake(-5), 0, 'a negative stake falls back to free play');
 assert.equal(normalizeRounds(0), 5);
 assert.equal(normalizeRounds(99), 20);
@@ -151,14 +151,14 @@ assert.equal(stalledSpin.finished, true);
 assert.equal(stalled.status, 'finished', 'the room closes once no turn is left');
 assert.equal(stalled.winner.userId, 'a');
 
-assert.equal(calculateSpinnerPot({ stake: 10, players: [{}, {}, {}] }), 30);
+assert.equal(calculateSpinnerPot({ stake: 10, players: [{}, {}, {}] }), 0, 'free games never create a coin pot');
 assert.equal(calculateSpinnerPot({ stake: 0, players: [{}, {}] }), 0);
 
 const publicState = serializeSpinnerGame(solo);
 assert.equal(publicState.players.every((player) => player.socketId === undefined), true, 'socket ids never leave the server');
 assert.deepEqual(publicState.players.map((player) => player.pointerAngle), [0, 180], 'every seat keeps one pointer');
 assert.equal(publicState.segmentCount, SPINNER_SEGMENTS.length);
-assert.equal(publicState.pot, 20, 'a staked solo room covers the house funded bot seat');
+assert.equal(publicState.pot, 0, 'solo games never create a prize pot');
 assert.equal(solo.players.length, 2, 'serialising never mutates the live game');
 
 console.log('Spinner engine tests passed');

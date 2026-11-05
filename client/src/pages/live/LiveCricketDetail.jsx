@@ -78,7 +78,7 @@ function LiveCricketDetail() {
           </div>
 
           <div className="bet-markets">
-            <h3>Bet Markets</h3>
+            <h3>Free prediction options</h3>
             <div className="markets-list">
               {/* Example layout matching provided screenshot: groups with Over / Threshold / Under columns */}
               {marketGroups.map((m, idx) => (

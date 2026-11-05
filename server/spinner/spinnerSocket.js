@@ -1,5 +1,5 @@
-import jwt from 'jsonwebtoken';
 import User from '../models/userModel.js';
+import { verifySessionToken } from '../auth/session.js';
 import '../config/env.js';
 import {
   collectStakes,
@@ -30,7 +30,6 @@ import {
   startSpinnerGame,
 } from './gameEngine.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
 const rooms = new Map();
 const ACTION_WINDOW_MS = 700;
 const CLEANUP_DELAY_MS = 120000;
@@ -229,7 +228,7 @@ export function createSpinnerSocket(io) {
     try {
       const token = socket.handshake.auth?.token;
       if (!token) return next(new Error('Authentication required'));
-      const payload = jwt.verify(token, JWT_SECRET);
+      const payload = await verifySessionToken(token);
       const user = await User.findById(payload.id).select('username');
       if (!user) return next(new Error('User not found'));
       socket.data.user = { id: String(user._id), username: user.username };
@@ -250,7 +249,7 @@ export function createSpinnerSocket(io) {
         const room = {
           code: createRoomCode(),
           gameLabel: 'Spinner',
-          game: createSpinnerGame('', seats, rounds ?? DEFAULT_ROUNDS, stake),
+          game: createSpinnerGame('', seats, rounds ?? DEFAULT_ROUNDS, singlePlayer ? 0 : stake),
           escrow: createEscrow(),
           cleanupTimer: null,
           botTimer: null,

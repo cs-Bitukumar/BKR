@@ -2,7 +2,7 @@ export const LUDO_COLORS = ['red', 'green', 'yellow', 'blue'];
 export const MAX_PLAYERS = 4;
 export const MIN_PLAYERS = 2;
 export const TOKENS_PER_PLAYER = 4;
-export const FINAL_POSITION = 57;
+export const FINAL_POSITION = 56;
 export const BOT_USER_ID = 'ludo-bot';
 export const SAFE_CELLS = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
 export const START_CELLS = { red: 0, green: 13, yellow: 26, blue: 39 };
@@ -11,8 +11,10 @@ export const START_CELLS = { red: 0, green: 13, yellow: 26, blue: 39 };
 export const TWO_PLAYER_COLORS = ['green', 'blue'];
 export const THREE_PLAYER_COLORS = ['red', 'yellow', 'green'];
 const TRACK_LENGTH = 52;
-export const STAKE_OPTIONS = [1, 5, 10, 20, 100];
 export const DEFAULT_STAKE = 0;
+export const LUDO_TIME_OPTIONS = [5, 10, 15, 30];
+export const LUDO_MOVE_LIMIT_OPTIONS = [20, 25, 30];
+export const LUDO_GAME_MODES = ['time', 'moves', 'full'];
 
 const PLAYER_HOME_PATHS = {
   red: 0,
@@ -29,29 +31,50 @@ function createTokens() {
   return Array.from({ length: TOKENS_PER_PLAYER }, () => -1);
 }
 
-// A stake of 0 keeps the original free-play behaviour. Any positive amount has
-// to match one of the wallet bet options offered by the client.
+function createTokenScores() {
+  return Array.from({ length: TOKENS_PER_PLAYER }, () => 0);
+}
+
+// Stake parameters from old clients are ignored; rooms are always free.
 export function normalizeStake(value) {
-  const stake = Number(value);
-  if (!Number.isFinite(stake) || stake <= 0) return DEFAULT_STAKE;
-  if (!STAKE_OPTIONS.includes(stake)) throw new Error('Choose a valid stake amount');
-  return stake;
+  return 0;
 }
 
-// Every seat contributes one stake to the pot. Bot seats are funded by the
-// house so a solo win still pays out a full pot.
 export function calculatePot(game) {
-  const stake = Number(game?.stake) || 0;
-  if (stake <= 0) return 0;
-  return stake * (Array.isArray(game?.players) ? game.players.length : 0);
+  return 0;
 }
 
-export function createGame(roomId, maxPlayers = MAX_PLAYERS, timeMinutes = 10, stake = DEFAULT_STAKE) {
+export function normalizeGameMode(value = 'time') {
+  if (!LUDO_GAME_MODES.includes(value)) throw new Error('Choose Time, Move, or Full Play');
+  return value;
+}
+
+export function normalizeTimeMinutes(value = 10) {
+  const minutes = Number(value);
+  if (!LUDO_TIME_OPTIONS.includes(minutes)) throw new Error('Choose a valid time limit');
+  return minutes;
+}
+
+export function createGame(roomId, maxPlayers = MAX_PLAYERS, timeMinutes = 10, stake = DEFAULT_STAKE, options = {}) {
+  const gameMode = normalizeGameMode(options.gameMode);
+  const requestedTime = Number(timeMinutes);
+  const configuredTime = gameMode === 'time' ? normalizeTimeMinutes(timeMinutes) : (Number.isFinite(requestedTime) && requestedTime > 0 ? requestedTime : 10);
+  const moveLimit = options.moveLimit == null ? null : Number(options.moveLimit);
+  if (gameMode === 'moves' && !LUDO_MOVE_LIMIT_OPTIONS.includes(moveLimit)) {
+    throw new Error('Choose a move limit of 20, 25, or 30');
+  }
   return {
     roomId,
     maxPlayers: Math.min(MAX_PLAYERS, Math.max(MIN_PLAYERS, Number(maxPlayers) || MAX_PLAYERS)),
-    timeMinutes: Math.max(1, Number(timeMinutes) || 10),
-    stake: normalizeStake(stake),
+    timeMinutes: configuredTime,
+    gameMode,
+    moveLimit: gameMode === 'moves' ? moveLimit : null,
+    completedMoves: 0,
+    deadlineAt: null,
+    turnDeadlineAt: null,
+    turnTransitionUntil: null,
+    draw: false,
+    stake: 0,
     status: 'waiting',
     players: [],
     currentPlayer: 0,
@@ -74,8 +97,17 @@ export function autoStartIfReady(game) {
   game.turnNumber = 1;
   game.diceValue = null;
   game.diceRolled = false;
+  game.completedMoves = 0;
+  game.deadlineAt = null;
+  game.turnDeadlineAt = null;
+  game.turnTransitionUntil = null;
   game.winner = null;
   game.winReason = null;
+  game.draw = false;
+  game.players.forEach((player) => {
+    player.tokenScores = createTokenScores();
+    player.score = 0;
+  });
   return game;
 }
 
@@ -109,7 +141,7 @@ export function addPlayer(game, { userId, username, socketId, isBot = false }) {
   }
 
   const color = colorForSeat(game.maxPlayers, game.players.length);
-  game.players.push({ userId, username: username || 'Player', socketId, isBot, color, connected: true, tokens: createTokens() });
+  game.players.push({ userId, username: username || 'Player', socketId, isBot, color, connected: true, tokens: createTokens(), tokenScores: createTokenScores(), score: 0 });
   return game;
 }
 
@@ -144,8 +176,17 @@ export function startGame(game, userId) {
   game.turnNumber = 1;
   game.diceValue = null;
   game.diceRolled = false;
+  game.completedMoves = 0;
+  game.deadlineAt = null;
+  game.turnDeadlineAt = null;
+  game.turnTransitionUntil = null;
   game.winner = null;
   game.winReason = null;
+  game.draw = false;
+  game.players.forEach((player) => {
+    player.tokenScores = createTokenScores();
+    player.score = 0;
+  });
   return game;
 }
 
@@ -167,17 +208,62 @@ export function getGlobalPosition(color, tokenPosition) {
   return (PLAYER_HOME_PATHS[color] + tokenPosition) % TRACK_LENGTH;
 }
 
+function getNextTokenPosition(position, diceValue) {
+  if (position === -1) return diceValue === 6 ? 0 : null;
+  if (!Number.isInteger(position) || position < 0 || position >= FINAL_POSITION) return null;
+
+  const remainingDistance = FINAL_POSITION - position;
+  if (diceValue > remainingDistance) return null;
+  return position + diceValue;
+}
+
 export function canMoveToken(game, userId, tokenIndex, diceValue = game.diceValue) {
   const player = getPlayer(game, userId);
   if (!player || game.status !== 'playing' || getCurrentPlayer(game)?.userId !== userId) return false;
   if (!Number.isInteger(tokenIndex) || tokenIndex < 0 || tokenIndex >= TOKENS_PER_PLAYER) return false;
   if (!Number.isInteger(diceValue) || diceValue < 1 || diceValue > 6) return false;
   const position = player.tokens[tokenIndex];
-  return position === -1 ? diceValue === 6 : position + diceValue <= FINAL_POSITION;
+  // A token may move within the home stretch, or finish exactly when the roll
+  // equals its remaining distance. Overshoots and already-finished tokens fail.
+  return getNextTokenPosition(position, diceValue) !== null;
 }
 
 export function getValidMoves(game, userId, diceValue = game.diceValue) {
   return Array.from({ length: TOKENS_PER_PLAYER }, (_, index) => index).filter((index) => canMoveToken(game, userId, index, diceValue));
+}
+
+export function getAutomaticMove(validMoves) {
+  return Array.isArray(validMoves) && validMoves.length === 1 ? validMoves[0] : null;
+}
+
+export function finishGameByScore(game, reason) {
+  if (game.status !== 'playing') return game.winner;
+  const standings = game.players.map((player) => ({
+    player,
+    score: Number(player.score) || 0,
+    finishedTokens: player.tokens.filter((position) => position === FINAL_POSITION).length,
+    progress: player.tokens.reduce((total, position) => total + (position < 0 ? 0 : position), 0),
+  })).sort((first, second) =>
+    second.score - first.score ||
+    second.finishedTokens - first.finishedTokens ||
+    second.progress - first.progress,
+  );
+  const [leader, runnerUp] = standings;
+  const tied = Boolean(leader && runnerUp && leader.score === runnerUp.score && leader.finishedTokens === runnerUp.finishedTokens && leader.progress === runnerUp.progress);
+  game.status = 'finished';
+  game.winReason = reason;
+  game.draw = tied;
+  game.winner = !leader || tied ? null : {
+    userId: leader.player.userId,
+    username: leader.player.username,
+    color: leader.player.color,
+  };
+  game.diceValue = null;
+  game.diceRolled = false;
+  game.deadlineAt = null;
+  game.turnDeadlineAt = null;
+  game.turnTransitionUntil = null;
+  return game.winner;
 }
 
 function captureOpponents(game, movingPlayer, destination) {
@@ -187,7 +273,11 @@ function captureOpponents(game, movingPlayer, destination) {
     if (player.userId === movingPlayer.userId) return;
     player.tokens = player.tokens.map((position, index) => {
       if (getGlobalPosition(player.color, position) === destination) {
-        captured.push({ userId: player.userId, color: player.color, tokenIndex: index });
+        const movementPoints = Number(player.tokenScores?.[index]) || 0;
+        player.score = Math.max(0, (Number(player.score) || 0) - movementPoints);
+        if (!Array.isArray(player.tokenScores)) player.tokenScores = createTokenScores();
+        player.tokenScores[index] = 0;
+        captured.push({ userId: player.userId, color: player.color, tokenIndex: index, movementPoints });
         return -1;
       }
       return position;
@@ -237,12 +327,24 @@ export function moveToken(game, userId, tokenIndex) {
   const player = getPlayer(game, userId);
   const diceValue = game.diceValue;
   const oldPosition = player.tokens[tokenIndex];
-  const nextPosition = oldPosition === -1 ? 0 : oldPosition + diceValue;
+  const nextPosition = getNextTokenPosition(oldPosition, diceValue);
+  // Keep this guard adjacent to the mutation as well as in canMoveToken, so no
+  // movement entry point can update game state after an overshooting roll.
+  if (nextPosition === null) throw new Error('That token cannot move with this dice roll');
   player.tokens[tokenIndex] = nextPosition;
   const destination = getGlobalPosition(player.color, nextPosition);
   const captured = captureOpponents(game, player, destination);
   const finished = player.tokens.every((position) => position === FINAL_POSITION);
   const reachedHome = nextPosition === FINAL_POSITION;
+  // Entering from the yard places a token on the start cell; it is not an
+  // ordinary movement step for scoring. All on-board movement uses the legal
+  // dice distance, including movement through and into the home stretch.
+  const steps = oldPosition === -1 ? 1 : diceValue;
+  const scoreAwarded = oldPosition === -1 ? 0 : steps;
+  if (!Array.isArray(player.tokenScores)) player.tokenScores = createTokenScores();
+  player.tokenScores[tokenIndex] = (Number(player.tokenScores[tokenIndex]) || 0) + scoreAwarded;
+  player.score = (Number(player.score) || 0) + scoreAwarded;
+  game.completedMoves = (Number(game.completedMoves) || 0) + 1;
   game.diceValue = null;
   game.diceRolled = false;
   if (diceValue !== 6) game.sixesInRow = 0;
@@ -251,6 +353,10 @@ export function moveToken(game, userId, tokenIndex) {
     game.status = 'finished';
     game.winReason = 'tokens';
     game.winner = { userId: player.userId, username: player.username, color: player.color };
+    game.turnDeadlineAt = null;
+    game.turnTransitionUntil = null;
+  } else if (game.gameMode === 'moves' && game.completedMoves >= game.moveLimit) {
+    finishGameByScore(game, 'move-limit');
   } else if (diceValue !== 6 && captured.length === 0 && !reachedHome) {
     advanceTurn(game);
   }
@@ -258,6 +364,10 @@ export function moveToken(game, userId, tokenIndex) {
     tokenIndex,
     oldPosition,
     nextPosition,
+    steps,
+    scoreAwarded,
+    completedMoves: game.completedMoves,
+    remainingMoves: game.gameMode === 'moves' ? Math.max(0, game.moveLimit - game.completedMoves) : null,
     captured,
     extraTurn: game.status !== 'finished' && (diceValue === 6 || captured.length > 0 || reachedHome),
     winner: game.winner,
@@ -279,11 +389,21 @@ export function awardWalkover(game, leftUserId) {
   game.diceValue = null;
   game.diceRolled = false;
   game.sixesInRow = 0;
+  game.turnDeadlineAt = null;
+  game.turnTransitionUntil = null;
   return game.winner;
 }
 
 export function serializeGame(game) {
   const publicGame = clone(game);
+  publicGame.gameMode ||= 'time';
+  publicGame.timeMinutes ||= 10;
+  publicGame.moveLimit ??= null;
+  publicGame.completedMoves = Number(publicGame.completedMoves) || 0;
+  publicGame.deadlineAt ??= null;
+  publicGame.turnDeadlineAt ??= null;
+  publicGame.turnTransitionUntil ??= null;
+  publicGame.draw = Boolean(publicGame.draw);
   publicGame.players = publicGame.players.map(({ socketId, ...player }) => player);
   delete publicGame.sixesInRow;
   publicGame.pot = calculatePot(game);

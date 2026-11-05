@@ -12,19 +12,37 @@ import {
   auditTrail,
 } from './adminData'
 
+function ComplaintCase({ item, token, onUpdated, onError }) {
+  const [status, setStatus] = useState(item.status)
+  const [internalNotes, setInternalNotes] = useState(item.internalNotes || '')
+  const [resolutionMessage, setResolutionMessage] = useState(item.resolutionMessage || '')
+  const [saving, setSaving] = useState(false)
+  async function save(event) {
+    event.preventDefault(); setSaving(true)
+    try {
+      const updated = await patch(`/api/admin/complaints/${item._id}`, { status, internalNotes, resolutionMessage }, token)
+      onUpdated(updated)
+    } catch (error) { onError(error.message || 'Unable to update complaint') }
+    finally { setSaving(false) }
+  }
+  return <article className="admin-complaint-card"><header><div><strong>{item.referenceId}</strong><span>{item.category} · {new Date(item.createdAt).toLocaleString()}</span></div><span className={`admin-status-pill is-${item.status.toLowerCase().replace(' ', '-')}`}>{item.status}</span></header><h3>{item.subject}</h3><p className="admin-complaint-contact">{item.name} · {item.email}</p><p className="admin-complaint-details">{item.details}</p><form onSubmit={save}><label>Status<select value={status} onChange={(event) => setStatus(event.target.value)}><option>Pending</option><option>In Progress</option><option>Resolved</option></select></label><label>Internal notes<textarea rows="2" maxLength="5000" value={internalNotes} onChange={(event) => setInternalNotes(event.target.value)} /></label><label>Resolution message<textarea rows="2" maxLength="3000" value={resolutionMessage} onChange={(event) => setResolutionMessage(event.target.value)} /></label><button className="secondary-btn admin-secondary" disabled={saving}>{saving ? 'Saving…' : 'Save case'}</button></form></article>
+}
+
 function AdminPage() {
   const { token } = useAuth()
   const [users, setUsers] = useState(seedUsers)
   const [overview, setOverview] = useState(null)
+  const [complaints, setComplaints] = useState([])
   const [message, setMessage] = useState('')
 
   useEffect(() => {
     let active = true
-    Promise.all([get('/api/admin/users', token), get('/api/admin/overview', token)])
-      .then(([nextUsers, nextOverview]) => {
+    Promise.all([get('/api/admin/users', token), get('/api/admin/overview', token), get('/api/admin/complaints', token)])
+      .then(([nextUsers, nextOverview, nextComplaints]) => {
         if (!active) return
         setUsers(Array.isArray(nextUsers) ? nextUsers : seedUsers)
         setOverview(nextOverview)
+        setComplaints(Array.isArray(nextComplaints) ? nextComplaints : [])
       })
       .catch((error) => active && setMessage(error.message || 'Unable to load admin data'))
     return () => { active = false }
@@ -66,9 +84,9 @@ function AdminPage() {
               </span>
 
               <div className="admin-hero-text">
-                <h2>Manage users, risk, and payouts from one command desk.</h2>
+                <h2>Manage accounts and community safety.</h2>
                 <p>
-                  Track flagged activity, broadcast notices, approve withdrawals, and keep the
+                  Review account activity, broadcast notices, and keep the
                   platform healthy with a dedicated operations view.
                 </p>
               </div>
@@ -102,11 +120,15 @@ function AdminPage() {
           </section>
 
           <section className="admin-panels">
+            <article className="admin-panel glass admin-complaints-panel" id="admin-complaints">
+              <div className="panel-header"><div><h2>Grievance Cases</h2><p>Private complaints visible only to authorized administrators.</p></div><span className="panel-live-count">{complaints.length} cases</span></div>
+              <div className="admin-complaints-list">{complaints.length ? complaints.map((item) => <ComplaintCase key={item._id} item={item} token={token} onError={setMessage} onUpdated={(updated) => setComplaints((current) => current.map((row) => row._id === updated._id ? updated : row))} />) : <p className="admin-complaint-empty">No complaints have been submitted.</p>}</div>
+            </article>
             <article className="admin-panel glass admin-users-panel" id="admin-users">
               <div className="panel-header">
                 <div>
                   <h2>User Management</h2>
-                  <p>Review accounts, balances, and segment assignments.</p>
+                  <p>Review accounts and virtual coin balances.</p>
                 </div>
                 <button className="panel-filter" type="button" aria-label="Filter users">
                   <span className="material-symbols-outlined">filter_alt</span>
@@ -117,7 +139,7 @@ function AdminPage() {
                 <div className="admin-table-head">
                   <span>User</span>
                   <span>Segment</span>
-                  <span>Balance</span>
+                  <span>Virtual coins</span>
                   <span>Status</span>
                 </div>
 
@@ -128,7 +150,7 @@ function AdminPage() {
                       <span>{user.email}</span>
                     </div>
                     <span>{user.segment || user.role}</span>
-                    <strong>{typeof user.balance === 'number' ? `₹${user.balance.toFixed(2)}` : user.balance}</strong>
+                    <strong>{Number(user.virtualCoins || 0).toLocaleString('en-IN')} coins</strong>
                     <span className={`admin-status-pill is-${user.status?.toLowerCase() || 'active'}`}>
                       {user.status || 'Active'}
                     </span>

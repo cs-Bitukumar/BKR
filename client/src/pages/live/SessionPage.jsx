@@ -14,7 +14,7 @@ const sessionRows = [
 
 function SessionPage() {
   const { id } = useParams()
-  const { token, refreshUser } = useAuth()
+  const { token } = useAuth()
   const [match, setMatch] = useState(null)
   const [selected, setSelected] = useState(null)
   const [status, setStatus] = useState('')
@@ -46,19 +46,17 @@ function SessionPage() {
     setStatus('')
   }
 
-  async function confirmBet({ stake }) {
+  async function confirmBet() {
     if (!selected) return
     try {
-      const response = await post('/api/bets', {
+      await post('/api/bets', {
         matchId: match.id || match.title,
         matchTitle: match.title,
         selection: selected.selection,
-        amount: Number(stake),
         odds: selected.odds,
       }, token)
-      if (response?.user) refreshUser(response.user)
       setSelected(null)
-      setStatus('Bet confirmed successfully.')
+      setStatus('Free prediction saved.')
     } catch (error) {
       setStatus(error.message || 'Could not confirm bet.')
     }

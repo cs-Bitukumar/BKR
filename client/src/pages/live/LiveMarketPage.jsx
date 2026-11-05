@@ -16,7 +16,7 @@ function normalizeMarket(item, sport = 'Football') {
 
 function LiveMarketPage() {
   const [params] = useSearchParams()
-  const { token, refreshUser } = useAuth()
+  const { token } = useAuth()
   const [activeFilter, setActiveFilter] = useState('All Markets')
   const [marketFeed, setMarketFeed] = useState([])
   const [selected, setSelected] = useState(null)
@@ -57,21 +57,20 @@ function LiveMarketPage() {
     setStatus('')
   }
 
-  async function confirmBet({ stake }) {
+  async function confirmBet() {
     if (!selected) return
     try {
-      const response = await post('/api/bets', { matchId: selected.matchId, matchTitle: selected.matchTitle, selection: selected.selection, amount: Number(stake), odds: selected.odds }, token)
-      if (response.user) refreshUser(response.user)
+      await post('/api/bets', { matchId: selected.matchId, matchTitle: selected.matchTitle, selection: selected.selection, odds: selected.odds }, token)
       setSelected(null)
-      setStatus('Bet confirmed successfully.')
-    } catch (err) { setStatus(err.message || 'Could not confirm bet.') }
+      setStatus('Free prediction saved.')
+    } catch (err) { setStatus(err.message || 'Could not save prediction.') }
   }
 
   const featured = markets[0]
   return (
     <main className="market-hub-page">
       <header className="market-hub-header">
-        <div className="market-hub-brand-row"><Link className="market-hub-back" to="/dashboard" aria-label="Back to dashboard"><span className="material-symbols-outlined">arrow_back</span></Link><div><span className="market-hub-kicker">BKR / In-play desk</span><h1>Live Markets</h1></div><span className="market-hub-live"><i /> Live feed</span></div>
+        <div className="market-hub-brand-row"><Link className="market-hub-back" to="/dashboard" aria-label="Back to dashboard"><span className="material-symbols-outlined">arrow_back</span></Link><div><span className="market-hub-kicker">BKR / In-play</span><h1>Live Scores</h1></div><span className="market-hub-live"><i /> Live feed</span></div>
         <p>Live market data fetched from the available sports providers.</p>
       </header>
       <div className="market-hub-layout">
@@ -89,7 +88,7 @@ function LiveMarketPage() {
             {loading ? <div className="market-empty">Loading live markets...</div> : markets.map((market) => <article className="market-board-card" key={market.id}>
               <div className="market-board-top"><div><span className="market-board-league">{market.league}</span><h3>{market.title}</h3></div><span className="market-board-live"><i /> {market.clock}</span></div>
               <div className="market-board-middle"><div className="market-board-score"><strong>{market.score}</strong><span>{market.clock}</span></div><div className="market-board-insight"><span>Market pulse</span><strong>{market.momentum}</strong><small>{market.volume}</small></div></div>
-              <div className="market-board-odds">{market.odds.map((odd) => <button type="button" key={odd.label} onClick={() => chooseMarket(market, odd)}><span>{odd.label}</span><strong>{odd.value}</strong><em>Back</em></button>)}</div>
+              <div className="market-board-odds">{market.odds.map((odd) => <button type="button" key={odd.label} onClick={() => chooseMarket(market, odd)}><span>{odd.label}</span><strong>{odd.value}</strong><em>Pick</em></button>)}</div>
             </article>)}
             {!loading && !markets.length && <div className="market-empty">{error || 'No live markets match your current filter.'}</div>}
           </div>

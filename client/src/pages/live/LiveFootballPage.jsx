@@ -4,12 +4,9 @@ import { Link } from 'react-router-dom'
 import BetSlipPanel from '../dashboard/components/BetSlipPanel'
 import { get, post } from '../../api/api'
 import { useAuth } from '../../context/AuthContext'
-import { formatCurrency, readWalletState, recordBetPlacement } from '../../utils/wallet'
 
 function LiveFootballPage() {
-  const { user, token, refreshUser } = useAuth()
-    const walletState = readWalletState(user)
-    const balanceLabel = formatCurrency(walletState.balance)
+  const { token } = useAuth()
 
   const [selectedBet, setSelectedBet] = useState(null)
   const [matches, setMatches] = useState([])
@@ -59,18 +56,14 @@ function LiveFootballPage() {
     })
   }
 
-  async function handleConfirmBet({ stake }) {
+  async function handleConfirmBet() {
     if (!selectedBet || placingBet) return
-    const amount = Number(stake)
-    if (!Number.isFinite(amount) || amount <= 0) return setBetStatus('Please enter a valid bet amount.')
     setPlacingBet(true)
-    setBetStatus('Placing bet...')
+    setBetStatus('Saving free prediction...')
     try {
-      const response = await post('/api/bets', { matchId: selectedBet.matchId, matchTitle: selectedBet.matchTitle, selection: selectedBet.market, amount, odds: selectedBet.odds }, token)
-      if (response.user) refreshUser(response.user)
-      recordBetPlacement(user, amount, { matchTitle: selectedBet.matchTitle, marketTitle: selectedBet.market, selection: selectedBet.market })
+      await post('/api/bets', { matchId: selectedBet.matchId, matchTitle: selectedBet.matchTitle, selection: selectedBet.market, odds: selectedBet.odds }, token)
       setSelectedBet(null)
-      setBetStatus('Bet confirmed successfully.')
+      setBetStatus('Free prediction saved.')
     } catch (error) {
       setBetStatus(error.message || 'Could not confirm bet.')
     } finally {
@@ -93,11 +86,10 @@ function LiveFootballPage() {
             <div>
               <h1>Live Football</h1>
               <p>
-                All active football matches and betting markets.
+                Live football scores and free prediction options.
               </p>
             </div>
           </div>
-          <div>{balanceLabel}</div>
 
         </div>
       </header>

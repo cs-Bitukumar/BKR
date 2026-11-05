@@ -5,14 +5,14 @@ import { useAuth } from "../../context/AuthContext";
 import "./ProfilePage.css";
 import "./ProfilePageResponsive.css";
 import { profileAchievements } from "./profileData";
-import { formatCurrency, readWalletState } from "../../utils/wallet";
+import { formatCoins, readWalletState } from "../../utils/wallet";
 
 const matchName = (bet) =>
   typeof bet?.match === "string"
     ? bet.match
     : bet?.match && typeof bet.match === "object"
       ? `${bet.match.homeTeam || "Team A"} vs ${bet.match.awayTeam || "Team B"}`
-      : bet?.selection || "Bet record";
+      : bet?.selection || "Prediction record";
 const getInitials = (name = "BKR User") =>
   name
     .split(" ")
@@ -121,7 +121,7 @@ function ProfilePage() {
     const winRate = total ? Math.round((wins / total) * 100) : 0;
 
     return [
-      { label: "Total Bets", value: total.toLocaleString("en-IN"), icon: "analytics" },
+      { label: "Predictions", value: total.toLocaleString("en-IN"), icon: "analytics" },
       { label: "Wins", value: wins.toLocaleString("en-IN"), icon: "check_circle" },
       { label: "Losses", value: losses.toLocaleString("en-IN"), icon: "cancel" },
       { label: "Win Rate", value: `${winRate}%`, icon: "insights" },
@@ -135,12 +135,7 @@ function ProfilePage() {
         category: bet.match?.status
           ? String(bet.match.status).toUpperCase()
           : "LIVE MARKET",
-        amount:
-          bet.status === "won"
-            ? `+${formatCurrency(bet.amount * bet.odds)}`
-            : bet.status === "lost"
-              ? `-${formatCurrency(bet.amount)}`
-              : formatCurrency(bet.amount),
+        amount: "Free prediction",
         time: bet.placedAt
           ? new Date(bet.placedAt).toLocaleString("en-IN", {
               day: "numeric",
@@ -167,7 +162,7 @@ function ProfilePage() {
           <Link className="profile-brand" to="/dashboard">
             <span className="profile-brand-mark">BKR</span>
             <span>
-              BKR <small>TRADING DESK</small>
+              BKR <small>GAME CENTER</small>
             </span>
           </Link>
           <div className="profile-topbar-actions">
@@ -190,9 +185,9 @@ function ProfilePage() {
         <div className="profile-page-heading">
           <div>
             <p className="profile-eyebrow">ACCOUNT CENTER / PROFILE</p>
-            <h1>Your betting profile</h1>
+            <h1>Your player profile</h1>
             <p className="profile-heading-copy">
-              Track your progress, performance and betting activity in one
+              Track your progress and saved free predictions in one
               place.
             </p>
           </div>
@@ -264,20 +259,16 @@ function ProfilePage() {
           <div className="profile-main-column">
             <section className="profile-wallet-card glass">
               <div>
-                <p className="profile-section-kicker">Available balance</p>
-                <h3>{formatCurrency(walletState.balance)}</h3>
+                <p className="profile-section-kicker">Virtual coins</p>
+                <h3>{formatCoins(walletState.virtualCoins)}</h3>
                 <p className="profile-wallet-note">
                   <span className="material-symbols-outlined">trending_up</span>{" "}
                   Ready to play
                 </p>
               </div>
               <div className="profile-wallet-actions">
-                <Link className="profile-topup-btn" to="/wallet/deposit">
-                  <span className="material-symbols-outlined">add</span> Add
-                  funds
-                </Link>
                 <Link className="profile-secondary-btn" to="/wallet">
-                  Wallet
+                  Coin history
                 </Link>
               </div>
             </section>
@@ -285,7 +276,7 @@ function ProfilePage() {
               <div className="profile-section-header">
                 <div>
                   <p className="profile-eyebrow">PERFORMANCE</p>
-                  <h3>Betting overview</h3>
+                  <h3>Prediction overview</h3>
                 </div>
                 <span className="profile-period">ALL TIME</span>
               </div>
@@ -312,7 +303,7 @@ function ProfilePage() {
               <div className="profile-section-header">
                 <div>
                   <p className="profile-eyebrow">ACTIVITY</p>
-                  <h3>Recent bets</h3>
+                  <h3>Recent predictions</h3>
                 </div>
                 <Link to="/history" className="profile-view-all">
                   View all{" "}
@@ -351,8 +342,8 @@ function ProfilePage() {
                   <article className="profile-empty glass">
                     <span className="material-symbols-outlined">history</span>
                     <div>
-                      <h5>No recent bets yet</h5>
-                      <p>Your betting activity will appear here.</p>
+                      <h5>No recent predictions yet</h5>
+                      <p>Your saved free picks will appear here.</p>
                     </div>
                   </article>
                 )}
@@ -408,6 +399,13 @@ function ProfilePage() {
           </aside>
         </div>
       </div>
+      <nav className="profile-policy-links" aria-label="Policies and support">
+        <Link to="/policies/privacy">Privacy</Link>
+        <Link to="/policies/terms">Terms</Link>
+        <Link to="/policies/refunds">Refunds</Link>
+        <Link to="/policies/responsible">Responsible Gaming</Link>
+        <Link to="/contact">Contact & Grievance</Link>
+      </nav>
       <nav className="profile-bottom-nav glass" aria-label="Profile navigation">
         <Link to="/dashboard">
           <span className="material-symbols-outlined">sports_esports</span>

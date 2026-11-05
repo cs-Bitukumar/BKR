@@ -6,8 +6,8 @@ const Scorecard = () => {
   const { matchId } = useParams();
 
   const [scorecard, setScorecard] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(Boolean(matchId));
+  const [error, setError] = useState(matchId ? "" : "Match ID not found");
 
   useEffect(() => {
     const fetchScorecard = async () => {
@@ -36,12 +36,7 @@ const Scorecard = () => {
       }
     };
 
-    if (matchId) {
-      fetchScorecard();
-    } else {
-      setError("Match ID not found");
-      setLoading(false);
-    }
+    if (matchId) fetchScorecard();
   }, [matchId]);
 
   if (loading) {

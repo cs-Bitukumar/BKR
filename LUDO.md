@@ -66,8 +66,8 @@ cash pot:
   atomic `User.findOneAndUpdate({ balance: { $gte: stake } })`, and one
   `WalletTransaction` of type `bet` is written per player.
 - The winner is credited the whole pot (`stake × seats`) with a `payout`
-  transaction. Bot seats are funded by the house, so a solo win still pays a full
-  pot. A bot win keeps the pot and is never refunded.
+  transaction. Solo Ludo is always free, so the bot seat never creates a cash
+  stake or payout.
 - If a player cannot cover the stake, the start is rejected, any already
   collected stakes are refunded, and the room returns to the waiting state.
 - Abandoned staked rooms (every participant left or disconnected) refund the
@@ -79,7 +79,8 @@ cash pot:
   refreshes the balance and the cached wallet snapshot immediately.
 
 Free play remains the default, which keeps the game playable for members whose
-wallet balance is still empty.
+wallet balance is still empty. The solo mode is always free, even if a client
+sends a stake amount, because the bot does not contribute a real wallet stake.
 
 ## Local multiplayer test
 

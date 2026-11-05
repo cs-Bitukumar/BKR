@@ -55,8 +55,8 @@ function LiveMatchDetail() {
 
         <aside className="detail-actions">
           <div className="card glass">
-            <h4>Place a bet</h4>
-            <p>Quick stake and add to slip (integration pending).</p>
+            <h4>Make a free prediction</h4>
+            <p>Save a pick for fun. No coins or money are used, and there are no prizes.</p>
             <button className="primary-btn" type="button">Add to slip</button>
             <Link to="/live-markets" style={{ display: 'block', marginTop: 12 }}>Back</Link>
           </div>

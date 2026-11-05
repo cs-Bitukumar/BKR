@@ -1,15 +1,15 @@
 ﻿import './DashboardSummary.css'
 import { useAuth } from '../../../context/AuthContext'
-import { formatCurrency, readWalletState } from '../../../utils/wallet'
+import { formatCoins, readWalletState } from '../../../utils/wallet'
 
 function DashboardSummary() {
   const { user } = useAuth()
-  const balance = formatCurrency(readWalletState(user).balance)
+  const balance = formatCoins(readWalletState(user).virtualCoins)
   const stats = [
-    { label: 'Wallet Balance', value: balance, icon: 'account_balance_wallet', accent: true },
-    { label: 'Total Bets', value: '142', icon: 'analytics' },
+    { label: 'Virtual coins', value: balance, icon: 'token', accent: true },
+    { label: 'Free predictions', value: '—', icon: 'analytics' },
     { label: 'Wins', value: '89', icon: 'emoji_events' },
-    { label: 'Profit', value: '+₹3,210.00', icon: 'payments', accent: true, note: '+12%' },
+    { label: 'Prizes', value: 'None', icon: 'sports_esports' },
   ]
   return (
     <section className="dashboard-overview" id="overview">

@@ -30,7 +30,7 @@ function DashboardTopBar() {
           <span className="dashboard-brand-mark">BX</span>
           <div className="dashboard-brand-copy">
           <h1>BKR</h1>
-            <p>Trading desk</p>
+            <p>Game center</p>
           </div>
         </Link>
 

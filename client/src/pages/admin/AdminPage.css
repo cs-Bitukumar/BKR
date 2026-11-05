@@ -157,9 +157,12 @@
 }
 
 .admin-users-panel,
-.admin-audit-panel {
+.admin-audit-panel,
+.admin-complaints-panel {
   grid-column: 1 / -1;
 }
+
+.admin-complaints-list{display:grid;gap:12px}.admin-complaint-card{padding:15px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.025)}.admin-complaint-card>header{display:flex;justify-content:space-between;gap:12px}.admin-complaint-card>header div{display:grid;gap:4px}.admin-complaint-card>header strong{color:var(--primary);font:700 .75rem 'Space Mono',monospace}.admin-complaint-card>header span,.admin-complaint-contact{color:var(--muted-2);font-size:.67rem}.admin-complaint-card h3{margin:12px 0 4px;font-size:.9rem}.admin-complaint-details{margin:12px 0;padding:12px;border-radius:10px;background:rgba(0,0,0,.18);color:var(--muted);font-size:.76rem;white-space:pre-wrap;overflow-wrap:anywhere}.admin-complaint-card form{display:grid;grid-template-columns:160px 1fr 1fr auto;align-items:end;gap:10px}.admin-complaint-card form label{display:grid;gap:5px;color:var(--muted-2);font-size:.65rem}.admin-complaint-card form select,.admin-complaint-card form textarea{width:100%;padding:9px;border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--text);background:#111;font:inherit}.admin-complaint-empty{padding:16px;color:var(--muted-2);font-size:.78rem}
 
 .panel-header {
   display: flex;
@@ -440,7 +443,8 @@
   }
 
   .admin-users-panel,
-  .admin-audit-panel {
+  .admin-audit-panel,
+  .admin-complaints-panel {
     grid-column: auto;
   }
 }
@@ -484,3 +488,5 @@
     align-items: start;
   }
 }
+
+@media (max-width: 720px) { .admin-complaint-card form { grid-template-columns: 1fr; } }
